@@ -1,15 +1,15 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, EmailStr
 from typing import Optional
 
 class BuyerCreate(BaseModel):
     name: str = Field(..., max_length=60)
-    phone: str = Field(..., max_length=20)
-    email: str = Field(max_length=100)
+    phone: str = Field(..., max_length=20, pattern=r'^\+?\s?\d[\d\s]{5,17}$')
+    email: EmailStr = Field(max_length=100)
 
 class BuyerDelete(BaseModel):
     id: Optional[int] = None
     name: Optional[str] = None
-    phone: Optional[str] = None
+    phone: Optional[EmailStr] = None
 
     @model_validator(mode="after")
     def check_valid_fields(self):
@@ -21,7 +21,7 @@ class BuyerDelete(BaseModel):
 class BuyerUpdate(BaseModel):
     name: Optional[str] = None
     phone: Optional[str] = None
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
 
     @model_validator(mode="after")
     def check_valid_fields(self):
