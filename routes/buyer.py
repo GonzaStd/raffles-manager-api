@@ -1,28 +1,18 @@
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from database import SessionLocal
+from database.connection import get_db
 from models.buyer import Buyer
 from schemas.buyer import BuyerCreate, BuyerDelete, BuyerUpdate
 
 router = APIRouter()
-
-# get database session
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @router.post("/buyer")
 def create_buyer(buyer: BuyerCreate, db: Session = Depends(get_db)):
     new_buyer = Buyer(
         name=buyer.name,
         phone=buyer.phone,
-        email=buyer.email
+        email=str(buyer.email)
     )
 
     db.add(new_buyer)

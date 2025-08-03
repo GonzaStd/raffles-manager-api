@@ -4,7 +4,7 @@ from typing import Optional
 class BuyerCreate(BaseModel):
     name: str = Field(..., max_length=60)
     phone: str = Field(..., max_length=20, pattern=r'^\+?\s?\d[\d\s]{5,17}$')
-    email: EmailStr = Field(max_length=100)
+    email: EmailStr = None
 
 class BuyerDelete(BaseModel):
     id: Optional[int] = None

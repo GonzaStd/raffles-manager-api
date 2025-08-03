@@ -2,7 +2,7 @@ CREATE DATABASE IF NOT EXISTS raffles_draw;
 USE raffles_draw;
 CREATE TABLE IF NOT EXISTS projects (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(60) NOT NULL,
+    name VARCHAR(60) NOT NULL UNIQUE,
     description TEXT,
     creation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     is_active BOOLEAN DEFAULT true
