@@ -29,11 +29,11 @@ CREATE TABLE IF NOT EXISTS buyers (
     CONSTRAINT unique_name_phone UNIQUE (name, phone)
 );
 CREATE TABLE IF NOT EXISTS raffles (
-    set_id INT AUTO_INCREMENT PRIMARY KEY,
-    number INT NOT NULL,
+    set_id INT NOT NULL,
+    number INT AUTO_INCREMENT PRIMARY KEY,
     buyer_id INT,
     sell_date TIMESTAMP,
-    payment_method VARCHAR(8) CHECK (payment_method in ('CASH', 'CARD', 'TRANSFER', 'OTHER')),
+    payment_method VARCHAR(8) CHECK (payment_method in ('cash', 'card', 'transfer')),
     state VARCHAR(9) DEFAULT 'available' CHECK (state IN ('available', 'sold', 'reserved')),
     FOREIGN KEY (buyer_id) REFERENCES buyers(id),
     FOREIGN KEY (set_id) REFERENCES raffle_sets(id)

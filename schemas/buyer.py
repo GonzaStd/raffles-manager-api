@@ -9,7 +9,7 @@ class BuyerCreate(BaseModel):
 class BuyerDelete(BaseModel):
     id: Optional[int] = None
     name: Optional[str] = None
-    phone: Optional[EmailStr] = None
+    phone: Optional[str] = None
 
     @model_validator(mode="after")
     def check_valid_fields(self):

@@ -70,14 +70,14 @@ def get_one_buyer(
 @router.patch("/buyer")
 def modify_buyer(
         updates: BuyerUpdate,
-        id: int = Query(..., ge=0),
+        id: int = Query(..., gt=0),
         db: Session = Depends(get_db)
 ):
     buyer = db.query(Buyer).filter(Buyer.id == id).first()
     if not buyer:
         raise HTTPException(status_code=404, detail="Buyer not found")
 
-    for field, value in updates.dict(exclude_unset=True).items():
+    for field, value in updates.model_dump(exclude_unset=True).items():
         setattr(buyer, field, value)
 
     db.commit()
@@ -86,11 +86,16 @@ def modify_buyer(
 
 
 @router.get("/buyers")
-def get_all_buyers(
+def get_buyers(
     limit: int = 0,
     db: Session = Depends(get_db)
 ):
     if limit > 0:
         return db.query(Buyer).limit(limit).all()
-    else:
+    elif limit == 0:
         return db.query(Buyer).all()
+    else:
+        raise HTTPException(
+            status_code=400,  # Bad Request
+            detail="Limit must be a non-negative integer."
+        )
