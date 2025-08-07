@@ -17,18 +17,23 @@ class RaffleSetOut(BaseModel):
     unit_price: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class RaffleSetUpdate(BaseModel):
+    id: int
     name: Optional[str] = Field(..., max_length=60)
-    type: Optional[str] = Literal["online", "physical"]
+    type: Optional[Literal["online", "physical"]] = Field(...)
     unit_price: Optional[int] = Field(..., gt=0)
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
     @model_validator(mode="after")
     def check_valid_fields(self):
-        if not self.name or not self.type or not self.unit_price:
-            raise ValueError("You must modify/update at least one value.")
+        id, name, type, unit_price = (self.id, self.name, self.type, self.unit_price)
+        if id:
+            if name or not type or not unit_price:
+                raise ValueError("You must modify/update at least one value.")
+        else:
+            raise ValueError("Set id is required.")
         return self

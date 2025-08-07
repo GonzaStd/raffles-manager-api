@@ -9,7 +9,7 @@ class BuyerCreate(BaseModel):
 class BuyerDelete(BaseModel):
     id: Optional[int] = None
     name: Optional[str] = None
-    phone: Optional[str] = None
+    phone: Optional[str] = Field(max_length=20, pattern=r'^\+?\s?\d[\d\s]{5,17}$')
 
     @model_validator(mode="after")
     def check_valid_fields(self):
@@ -19,13 +19,17 @@ class BuyerDelete(BaseModel):
         return self
 
 class BuyerUpdate(BaseModel):
+    id: int
     name: Optional[str] = None
-    phone: Optional[str] = None
+    phone: Optional[str] = Field(max_length=20, pattern=r'^\+?\s?\d[\d\s]{5,17}$')
     email: Optional[EmailStr] = None
 
     @model_validator(mode="after")
     def check_valid_fields(self):
-        name, phone, email = (self.name, self.phone, self.email)
-        if name is None and phone is None and email is None:
-            raise ValueError("You must modify/update at least one value.")
+        id, name, phone, email = (self.id, self.name, self.phone, self.email)
+        if id:
+            if name is None and phone is None and email is None:
+                raise ValueError("You must modify/update at least one value.")
+        else:
+            raise ValueError("Buyer id is required.")
         return self
