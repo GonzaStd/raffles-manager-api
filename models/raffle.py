@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, TIMES
 from sqlalchemy.orm import relationship
 from database import Base
 
+
 class Raffle(Base):
     __tablename__ = "raffles"
     number = Column(Integer, primary_key=True)

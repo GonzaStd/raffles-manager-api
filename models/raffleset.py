@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, TIMESTAMP, ForeignKey, CheckCons
 from sqlalchemy.orm import relationship
 from database import Base
 
+
 class RaffleSet(Base):
     __tablename__ = "raffle_sets"
     id = Column(Integer, primary_key=True, index=True)

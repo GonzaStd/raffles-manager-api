@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, TIMESTAMP, UniqueConstraint
 from sqlalchemy.orm import relationship
 from database import Base
 
+
 class Buyer(Base):
     __tablename__ = "buyers"
 
