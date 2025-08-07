@@ -3,9 +3,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from models.buyer import Buyer
+from routes import get_record
 from schemas.buyer import BuyerCreate, BuyerDelete, BuyerUpdate
 
 router = APIRouter()
+
 
 @router.post("/buyer")
 def create_buyer(buyer: BuyerCreate, db: Session = Depends(get_db)):
@@ -21,12 +23,11 @@ def create_buyer(buyer: BuyerCreate, db: Session = Depends(get_db)):
     except IntegrityError:
         db.rollback()
         raise HTTPException(
-            status_code=400, # Bad Request
+            status_code=400,
             detail="There's already a buyer with that name and phone."
         )
 
     db.refresh(new_buyer)
-
     return {
         "id": new_buyer.id,
         "name": new_buyer.name,
@@ -34,55 +35,13 @@ def create_buyer(buyer: BuyerCreate, db: Session = Depends(get_db)):
         "phone": new_buyer.phone
     }
 
-@router.delete("/buyer")
-def delete_buyer(buyer: BuyerDelete, db: Session = Depends(get_db)):
-    if buyer.id:
-        buyer_record = db.query(Buyer).filter(Buyer.id == buyer.id).first()
-        if buyer_record:
-            db.delete(buyer_record)
-            db.commit()
-            return True
-        else:
-            raise HTTPException(
-                status_code=400,  # Bad Request
-                detail=f"There isn't any buyer with {buyer.id} id number."
-            )
-    else:
-        buyer_record = db.query(Buyer).filter((Buyer.name == buyer.name) & (Buyer.phone == buyer.phone)).first()
-        if buyer_record:
-            db.delete(buyer_record)
-            db.commit()
-            return True
-        else:
-            raise HTTPException(
-                status_code=400,  # Bad Request
-                detail=f"There isn't any buyer with that pair of name and number."
-            )
 
 @router.get("/buyer")
-def get_one_buyer(
-        id: int = Query(..., ge=0),
-        db: Session = Depends(get_db)
+def get_buyer(
+    id: int = Query(..., ge=1),
+    db: Session = Depends(get_db)
 ):
-    buyer_record = db.query(Buyer).filter(Buyer.id == id).first()
-    return buyer_record
-
-@router.patch("/buyer")
-def modify_buyer(
-        updates: BuyerUpdate,
-        id: int = Query(..., gt=0),
-        db: Session = Depends(get_db)
-):
-    buyer = db.query(Buyer).filter(Buyer.id == id).first()
-    if not buyer:
-        raise HTTPException(status_code=404, detail="Buyer not found")
-
-    for field, value in updates.model_dump(exclude_unset=True).items():
-        setattr(buyer, field, value)
-
-    db.commit()
-    db.refresh(buyer)
-    return buyer
+    return get_record(db, Buyer, id, "Buyer")
 
 
 @router.get("/buyers")
@@ -96,6 +55,43 @@ def get_buyers(
         return db.query(Buyer).all()
     else:
         raise HTTPException(
-            status_code=400,  # Bad Request
+            status_code=400,
             detail="Limit must be a non-negative integer."
         )
+
+
+@router.patch("/buyer")
+@router.put("/buyer")
+def update_buyer(
+    updates: BuyerUpdate,
+    db: Session = Depends(get_db)
+):
+    buyer_record = get_record(db, Buyer, id, "Buyer")
+
+    for field, value in updates.model_dump(exclude_unset=True).items():
+        setattr(buyer_record, field, value)
+    
+    db.commit()
+    db.refresh(buyer_record)
+    return buyer_record
+
+
+@router.delete("/buyer")
+def delete_buyer(buyer: BuyerDelete, db: Session = Depends(get_db)):
+    if buyer.id:
+        buyer_record = buyer_record = get_record(db, Buyer, id, "Buyer")
+        db.delete(buyer_record)
+        db.commit()
+        return {"message": "Buyer deleted successfully"}
+    else:
+        buyer_record = db.query(Buyer).filter(
+            (Buyer.name == buyer.name) & (Buyer.phone == buyer.phone)
+        ).first()
+        if not buyer_record:
+            raise HTTPException(
+                status_code=404,
+                detail="There isn't any buyer with that pair of name and number."
+            )
+        db.delete(buyer_record)
+        db.commit()
+        return {"message": "Buyer deleted successfully"}
