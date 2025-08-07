@@ -1,11 +1,20 @@
 CREATE DATABASE IF NOT EXISTS raffles_draw;
 USE raffles_draw;
+
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL
+)
+
 CREATE TABLE IF NOT EXISTS projects (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
     name VARCHAR(60) NOT NULL UNIQUE,
     description TEXT,
     creation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT true
+    is_active BOOLEAN DEFAULT true,
+    FOREIGN KEY (user_id) REFERENCES users(id)
 );
 CREATE TABLE IF NOT EXISTS raffle_sets (
     id INT AUTO_INCREMENT PRIMARY KEY,
