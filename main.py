@@ -5,21 +5,20 @@ from typing import cast
 
 app = FastAPI()
 
-# Configuración de CORS
 origins = [
     "http://localhost:3000",
     "http://localhost:8080",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:8080",
-    "*"  # Para desarrollo, permite todos los orígenes
+    "*"
 ]
 
 app.add_middleware(
     cast(type, CORSMiddleware),  # type: ignore
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Permite todos los métodos HTTP
-    allow_headers=["*"],  # Permite todos los headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(buyer.router, tags=["Buyers"])
