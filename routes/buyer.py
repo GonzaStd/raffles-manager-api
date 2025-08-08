@@ -79,7 +79,7 @@ def update_buyer(
 @router.delete("/buyer")
 def delete_buyer(buyer: BuyerDelete, db: Session = Depends(get_db)):
     if buyer.id:
-        buyer_record = buyer_record = get_record(db, Buyer, id, "Buyer")
+        buyer_record = get_record(db, Buyer, buyer.id, "Buyer")
         db.delete(buyer_record)
         db.commit()
         return {"message": "Buyer deleted successfully"}
