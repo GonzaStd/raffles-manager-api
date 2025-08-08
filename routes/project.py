@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from database.connection import get_db
 from models import RaffleSet, Raffle
 from models.project import Project
-from routes import get_record, get_records
+from routes import get_record, get_records, create_record
 from schemas.project import ProjectCreate, ProjectUpdate
 
 router = APIRouter()
@@ -17,19 +17,7 @@ def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
         description=project.description,
         user_id=1  # TODO: Replace with actual user ID from authentication
     )
-    
-    db.add(new_project)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="There's already a project with that name."
-        )
-    
-    db.refresh(new_project)
-    return new_project
+    return create_record(db, new_project)
 
 
 @router.get("/project")

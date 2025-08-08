@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from models import RaffleSet, Raffle
-from routes import get_record, get_records
+from routes import get_record, get_records, create_record
 from schemas.raffleset import RaffleSetCreate, RaffleSetUpdate
 
 router = APIRouter()
@@ -36,16 +36,7 @@ def create_raffleset(
         final=end
     )
 
-    db.add(new_raffleset)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="Raffle set already exists"
-        )
-    db.refresh(new_raffleset)
+    create_record(db, new_raffleset)
 
     raffles = [
         Raffle(

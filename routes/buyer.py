@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from models.buyer import Buyer
-from routes import get_record, get_records
+from routes import get_record, get_records, create_record
 from schemas.buyer import BuyerCreate, BuyerDelete, BuyerUpdate
 
 router = APIRouter()
@@ -16,24 +15,7 @@ def create_buyer(buyer: BuyerCreate, db: Session = Depends(get_db)):
         phone=buyer.phone,
         email=str(buyer.email)
     )
-
-    db.add(new_buyer)
-    try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="There's already a buyer with that name and phone."
-        )
-
-    db.refresh(new_buyer)
-    return {
-        "id": new_buyer.id,
-        "name": new_buyer.name,
-        "email": new_buyer.email,
-        "phone": new_buyer.phone
-    }
+    return create_record(db, new_buyer)
 
 
 @router.get("/buyer")

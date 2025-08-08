@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 
 
 def get_record(db, Model, _id, model_name, id_field="id"):
@@ -26,3 +27,17 @@ def get_records(db, Model, limit: int):
             status_code=400,
             detail="Limit must be a non-negative integer."
         )
+
+def create_record(db, object):
+    db.add(object)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Can't create a new record with that values."
+        )
+
+    db.refresh(object)
+    return object
