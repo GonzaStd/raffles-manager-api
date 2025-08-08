@@ -15,3 +15,14 @@ def get_record(db, Model, _id, model_name, id_field="id"):
     if not record:
         raise HTTPException(status_code=404, detail=f"{model_name} not found")
     return record
+
+def get_records(db, Model, limit: int):
+    if limit > 0:
+        return db.query(Model).order_by(Model.id.desc()).limit(limit).all().sort(reverse=True)
+    elif limit == 0:
+        return db.query(Model).all()
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Limit must be a non-negative integer."
+        )
