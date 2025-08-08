@@ -42,8 +42,12 @@ def create_record(db, object):
     db.refresh(object)
     return object
 
-def update_record(db, Model, schema):
-    record = get_record(db, Model, schema.id)
+def update_record(db, Model, schema, id_field="id"):
+    record = None
+    if id_field == "id":
+        record = get_record(db, Model, schema.id)
+    elif id_field == "number":
+        record = get_record(db, Model, schema.number)
 
     for field, value in schema.model_dump(exclude_unset=True).items():
         setattr(record, field, value)

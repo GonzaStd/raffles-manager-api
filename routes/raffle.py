@@ -51,4 +51,4 @@ def update_raffle(
     updates: RaffleUpdate,
     db: Session = Depends(get_db)
 ):
-    return update_record(db, Raffle, updates)
+    return update_record(db, Raffle, updates, "number")
