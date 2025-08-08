@@ -78,7 +78,7 @@ def delete_project(
     project_record = get_record(db, Project, id, "Project")
     
     # Delete rafflesets and raffles associated with the project
-    rafflesets = get_record(db, RaffleSet, id, "Raffle Set").all()
+    rafflesets = db.query(RaffleSet).filter(RaffleSet.project_id == id).all()
     sets_ids = [set.id for set in rafflesets]
     
     for set_id in sets_ids:
