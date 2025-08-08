@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP, UniqueConstraint
+from sqlalchemy import Column, Integer, String, TIMESTAMP, UniqueConstraint, text
 from sqlalchemy.orm import relationship
 from database.connection import Base
 
@@ -10,7 +10,7 @@ class Buyer(Base):
     name = Column(String(60), nullable=False)
     phone = Column(String(20), nullable=False)
     email = Column(String(64))
-    register_date = Column(TIMESTAMP, server_default="CURRENT_TIMESTAMP")
+    register_date = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
 
     __table_args__ = (
         UniqueConstraint('name', 'phone', name='unique_name_phone'),

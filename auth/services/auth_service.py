@@ -10,7 +10,7 @@ from fastapi import Depends, HTTPException, status
 from datetime import datetime, timedelta, timezone
 import jwt
 from database.connection import get_db
-from models import Users
+from models import User  # Changed from Users to User
 #from user.services.user_service import get_user_by_email
 
 SECRET_KEY = settings.JWT_SECRET_KEY

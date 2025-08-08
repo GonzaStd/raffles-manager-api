@@ -14,7 +14,7 @@ def get_raffle(
     number: int = Query(..., ge=1),
     db: Session = Depends(get_db)
 ):
-    raffle_record = get_record(db, Raffle, number, "Raffle")
+    raffle_record = get_record(db, Raffle, number, "Raffle", id_field="number")
     return raffle_record
 
 
@@ -39,7 +39,7 @@ def pay_raffle(
     payment: RafflePayment,
     db: Session = Depends(get_db)
 ):
-    raffle_record = get_record(db, Raffle, payment.number, "Raffle") #db.query(Raffle).filter(Raffle.number == payment.number).first()
+    raffle_record = get_record(db, Raffle, payment.number, "Raffle", id_field="number")
 
     if raffle_record.state != "available":
         raise HTTPException(status_code=400, detail="Raffle is not available for payment")
@@ -60,7 +60,7 @@ def update_raffle(
     updates: RaffleUpdate,
     db: Session = Depends(get_db)
 ):
-    raffle_record = get_record(db, Raffle, updates.number, "Raffle") #db.query(Raffle).filter(Raffle.number == updates.number).first()
+    raffle_record = get_record(db, Raffle, updates.number, "Raffle", id_field="number")
 
     for field, value in updates.model_dump(exclude_unset=True).items():
         setattr(raffle_record, field, value)

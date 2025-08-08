@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, TIMESTAMP, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, Boolean, TIMESTAMP, ForeignKey, text
 from sqlalchemy.orm import relationship
 from database.connection import Base
 
@@ -9,8 +9,8 @@ class Project(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     name = Column(String(60), nullable=False, unique=True)
     description = Column(Text)
-    creation_date = Column(TIMESTAMP, server_default="CURRENT_TIMESTAMP")
+    creation_date = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
     is_active = Column(Boolean, default=True)
 
     raffle_sets = relationship("RaffleSet", back_populates="project")
-    user = relationship("Users", back_populates="projects")
+    user = relationship("User", back_populates="projects")

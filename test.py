@@ -1,275 +1,361 @@
 # test_api.py
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
 from main import app
+from database.connection import get_db, Base
+from core.config_loader import settings
+from models.users import User
 
+# Test database setup
+TEST_DATABASE_URL = str(settings.SQLALCHEMY_DATABASE_URI).replace(
+    settings.MARIADB_DATABASE,
+    f"test_{settings.MARIADB_DATABASE}"
+)
+
+test_engine = create_engine(TEST_DATABASE_URL)
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+def override_get_db():
+    try:
+        db = TestingSessionLocal()
+        yield db
+    finally:
+        db.close()
+
+app.dependency_overrides[get_db] = override_get_db
 client = TestClient(app)
 
-# Global variables to store created IDs for cleanup
-created_buyer_id = None
-created_project_id = None
-created_raffleset_id = None
+# Global variables for test data
+test_data = {
+    "buyer_id": None,
+    "project_id": None,
+    "raffleset_id": None,
+    "raffle_number": None
+}
 
-# Test Projects
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_database():
+    """Setup test database before all tests and cleanup after."""
+    # Create test database
+    sys_engine = create_engine(f"mysql+pymysql://{settings.MARIADB_USERNAME}:{settings.MARIADB_PASSWORD}@{settings.MARIADB_SERVER}")
+
+    with sys_engine.connect() as conn:
+        conn.execute(text(f"DROP DATABASE IF EXISTS test_{settings.MARIADB_DATABASE}"))
+        conn.execute(text(f"CREATE DATABASE test_{settings.MARIADB_DATABASE}"))
+        conn.commit()
+
+    # Create tables
+    Base.metadata.create_all(bind=test_engine)
+
+    # Create a test user for foreign key relationships
+    db = TestingSessionLocal()
+    test_user = User(
+        username="testuser",
+        email="test@example.com",
+        password_hash="hashedpassword123",  # Fixed field name
+        is_active=True
+    )
+    db.add(test_user)
+    db.commit()
+    db.close()
+
+    yield
+
+    # Cleanup after all tests
+    with sys_engine.connect() as conn:
+        conn.execute(text(f"DROP DATABASE IF EXISTS test_{settings.MARIADB_DATABASE}"))
+        conn.commit()
+
+
 def test_create_project():
-    global created_project_id
+    """Test project creation endpoint."""
     response = client.post("/project", json={
-        "name": "Proyecto Test",
-        "description": "Descripcion de prueba"  # Sin acentos
+        "name": "Test Project",
+        "description": "Test project description"
     })
-    print(f"Create project response: {response.status_code}, {response.text}")
-    if response.status_code == 200:
-        data = response.json()
-        assert data["name"] == "Proyecto Test"
-        created_project_id = data["id"]
-    else:
-        # Si falla, intentamos con datos más simples
-        response = client.post("/project", json={
-            "name": "Test Project",
-            "description": "Test description"
-        })
-        print(f"Create project (retry) response: {response.status_code}, {response.text}")
-        if response.status_code == 200:
-            data = response.json()
-            created_project_id = data["id"]
-        assert response.status_code == 200
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Test Project"
+    assert data["description"] == "Test project description"
+    assert "id" in data
+
+    test_data["project_id"] = data["id"]
 
 
 def test_get_project():
-    if created_project_id:
-        response = client.get("/project", params={"id": created_project_id})
-        print(f"Get project response: {response.status_code}, {response.text}")
-        assert response.status_code == 200
+    """Test get single project endpoint."""
+    assert test_data["project_id"] is not None
 
-
-def test_get_all_projects():
-    response = client.get("/projects", params={"limit": 10})
-    print(f"Get all projects response: {response.status_code}")
+    response = client.get(f"/project?id={test_data['project_id']}")
     assert response.status_code == 200
 
+    data = response.json()
+    assert data["id"] == test_data["project_id"]
+    assert data["name"] == "Test Project"
 
-def test_update_project():
-    if created_project_id:
-        response = client.put("/project", json={
-            "id": created_project_id,
-            "name": "Proyecto Actualizado"
-        })
-        print(f"Update project response: {response.status_code}, {response.text}")
-        assert response.status_code == 200
 
-# Test RaffleSets
-def test_create_raffleset():
-    global created_raffleset_id
-    # Ensure we have a project ID
-    if not created_project_id:
-        project_response = client.post("/project", json={
-            "name": "Proyecto Rifa",
-            "description": "Para rifas"
-        })
-        print(f"Create project for raffleset: {project_response.status_code}, {project_response.text}")
-        if project_response.status_code == 200:
-            project_id = project_response.json()["id"]
-        else:
-            # Skip this test if we can't create a project
-            pytest.skip("Cannot create project for raffleset test")
-    else:
-        project_id = created_project_id
-
-    response = client.post("/raffleset", json={
-        "project_id": project_id,
-        "name": "Set de Prueba",
-        "type": "online",
-        "requested_count": 100,
-        "unit_price": 5000
-    })
-    print(f"Create raffleset response: {response.status_code}, {response.text}")
-    if response.status_code == 200:
-        created_raffleset_id = response.json().get("id")
+def test_get_projects():
+    """Test get all projects endpoint."""
+    response = client.get("/projects")
     assert response.status_code == 200
 
-
-def test_get_raffleset():
-    if created_raffleset_id:
-        response = client.get(f"/raffleset/{created_raffleset_id}")
-        print(f"Get raffleset response: {response.status_code}, {response.text}")
-        assert response.status_code == 200
-    else:
-        pytest.skip("No raffleset created to test")
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
 
 
-def test_update_raffleset():
-    if created_raffleset_id:
-        response = client.patch(f"/raffleset/{created_raffleset_id}", json={
-            "unit_price": 6000
-        })
-        print(f"Update raffleset response: {response.status_code}, {response.text}")
-        assert response.status_code == 200
-    else:
-        pytest.skip("No raffleset created to test")
-
-# Test Buyers
 def test_create_buyer():
-    global created_buyer_id
+    """Test buyer creation endpoint."""
     response = client.post("/buyer", json={
-        "name": "Juan Perez",  # Sin acentos para evitar problemas de codificación
-        "phone": "+57 300 123 4567",
-        "email": "juan@email.com"
+        "name": "John Doe",
+        "phone": "+1234567890",
+        "email": "john@example.com"
     })
-    print(f"Create buyer response: {response.status_code}, {response.text}")
+
     assert response.status_code == 200
     data = response.json()
-    assert data["name"] == "Juan Perez"
+    assert data["name"] == "John Doe"
+    assert data["phone"] == "+1234567890"
+    assert data["email"] == "john@example.com"
     assert "id" in data
-    created_buyer_id = data["id"]
+
+    test_data["buyer_id"] = data["id"]
 
 
 def test_get_buyer():
-    if created_buyer_id:
-        response = client.get("/buyer", params={"id": created_buyer_id})
-        print(f"Get buyer response: {response.status_code}, {response.text}")
-        assert response.status_code == 200
+    """Test get single buyer endpoint."""
+    assert test_data["buyer_id"] is not None
 
-
-def test_get_all_buyers():
-    response = client.get("/buyers", params={"limit": 10})
-    print(f"Get all buyers response: {response.status_code}")
+    response = client.get(f"/buyer?id={test_data['buyer_id']}")
     assert response.status_code == 200
 
-
-def test_update_buyer():
-    if created_buyer_id:
-        response = client.patch("/buyer", params={"id": created_buyer_id}, json={
-            "email": "nuevo@email.com"
-        })
-        print(f"Update buyer response: {response.status_code}, {response.text}")
-        assert response.status_code == 200
+    data = response.json()
+    assert data["id"] == test_data["buyer_id"]
+    assert data["name"] == "John Doe"
 
 
-# Test Raffles
+def test_get_buyers():
+    """Test get all buyers endpoint."""
+    response = client.get("/buyers")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+
+
+def test_create_raffleset():
+    """Test raffleset creation endpoint."""
+    assert test_data["project_id"] is not None
+
+    response = client.post("/raffleset", json={
+        "project_id": test_data["project_id"],
+        "name": "Test Raffle Set",
+        "type": "online",
+        "requested_count": 10,
+        "unit_price": 1000
+    })
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "raffleset" in data
+    assert "range" in data
+    assert data["raffleset"]["name"] == "Test Raffle Set"
+
+    test_data["raffleset_id"] = data["raffleset"]["id"]
+    # Extract first raffle number from range
+    range_str = data["range"]
+    test_data["raffle_number"] = int(range_str.split("-")[0])
+
+
+def test_get_raffleset():
+    """Test get single raffleset endpoint."""
+    assert test_data["raffleset_id"] is not None
+
+    response = client.get(f"/raffleset/{test_data['raffleset_id']}")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert data["id"] == test_data["raffleset_id"]
+    assert data["name"] == "Test Raffle Set"
+
+
+def test_get_rafflesets():
+    """Test get all rafflesets endpoint."""
+    response = client.get("/rafflesets")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+
+
 def test_get_raffle():
-    response = client.get("/raffle", params={"number": 1})
-    print(f"Get raffle response: {response.status_code}, {response.text}")
-    # Accept 404 if no raffles exist
-    assert response.status_code in [200, 404]
+    """Test get single raffle endpoint."""
+    assert test_data["raffle_number"] is not None
 
-
-def test_get_all_raffles():
-    response = client.get("/raffles", params={"limit": 10})
-    print(f"Get all raffles response: {response.status_code}")
+    response = client.get(f"/raffle?number={test_data['raffle_number']}")
     assert response.status_code == 200
+
+    data = response.json()
+    assert data["number"] == test_data["raffle_number"]
+    assert data["state"] == "available"
+
+
+def test_get_raffles():
+    """Test get all raffles endpoint."""
+    response = client.get("/raffles")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) >= 10  # We created 10 raffles
 
 
 def test_pay_raffle():
-    buyer_id = None
-    # Ensure we have a buyer
-    if not created_buyer_id:
-        buyer_response = client.post("/buyer", json={
-            "name": "Comprador Test",
-            "phone": "+57 300 999 8888",
-            "email": "comprador@test.com"
-        })
-        print(f"Create buyer for raffle: {buyer_response.status_code}, {buyer_response.text}")
-        if buyer_response.status_code == 200:
-            buyer_id = buyer_response.json()["id"]
-        else:
-            pytest.skip("Cannot create buyer for raffle test")
-    else:
-        buyer_id = created_buyer_id
+    """Test raffle payment endpoint."""
+    assert test_data["raffle_number"] is not None
+    assert test_data["buyer_id"] is not None
 
-    response = client.post("/raffle", params={"number": 1}, json={
-        "buyer_id": buyer_id,
-        "payment_method": "cash",
+    response = client.post("/raffle/pay", json={
+        "number": test_data["raffle_number"],
+        "buyer_id": test_data["buyer_id"],
+        "payment_method": "card",
         "state": "sold"
     })
-    print(f"Pay raffle response: {response.status_code}, {response.text}")
-    # This might return 404 if raffle doesn't exist, so we'll accept both
-    assert response.status_code in [200, 404]
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["number"] == test_data["raffle_number"]
+    assert data["buyer_id"] == test_data["buyer_id"]
+    assert data["state"] == "sold"
+    assert data["payment_method"] == "card"
+
+
+def test_update_buyer():
+    """Test buyer update endpoint."""
+    assert test_data["buyer_id"] is not None
+
+    response = client.patch("/buyer", json={
+        "id": test_data["buyer_id"],
+        "name": "John Smith",
+        "email": "johnsmith@example.com"
+    })
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "John Smith"
+    assert data["email"] == "johnsmith@example.com"
+
+
+def test_update_project():
+    """Test project update endpoint."""
+    assert test_data["project_id"] is not None
+
+    response = client.patch("/project", json={
+        "id": test_data["project_id"],
+        "description": "Updated project description"
+    })
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["description"] == "Updated project description"
 
 
 def test_update_raffle():
-    response = client.patch("/raffle", params={"set_id": 1}, json={
+    """Test raffle update endpoint."""
+    assert test_data["raffle_number"] is not None
+
+    response = client.patch("/raffle", json={
+        "number": test_data["raffle_number"],
         "state": "reserved"
     })
-    print(f"Update raffle response: {response.status_code}, {response.text}")
-    # This might return 404 if raffle doesn't exist, so we'll accept both
-    assert response.status_code in [200, 404]
 
-
-# Test Error Cases
-def test_create_buyer_invalid_data():
-    response = client.post("/buyer", json={
-        "name": "",  # Invalid
-        "phone": "123",  # Invalid
-        "email": "invalid-email"  # Invalid
-    })
-    print(f"Invalid buyer response: {response.status_code}")
-    assert response.status_code == 422
-
-
-def test_get_nonexistent_project():
-    response = client.get("/project", params={"id": 999})
-    print(f"Nonexistent project response: {response.status_code}")
-    assert response.status_code == 404
-
-
-def test_buyer_delete_validation():
-    response = client.delete("/buyer")
-    print(f"Delete buyer validation response: {response.status_code}")
-    assert response.status_code == 422
-
-
-# Cleanup tests (run last)
-def test_delete_buyer():
-    if created_buyer_id:
-        # ✅ Usar request() para DELETE con JSON body
-        response = client.request("DELETE", "/buyer", json={"id": created_buyer_id})
-        print(f"Delete buyer response: {response.status_code}, {response.text}")
-        assert response.status_code == 200
+    assert response.status_code == 200
+    data = response.json()
+    assert data["state"] == "reserved"
 
 
 def test_delete_raffleset():
-    if created_raffleset_id:
-        response = client.delete(f"/raffleset/{created_raffleset_id}")
-        print(f"Delete raffleset response: {response.status_code}")
-        assert response.status_code == 200
+    """Test raffleset deletion endpoint."""
+    assert test_data["raffleset_id"] is not None
+
+    response = client.delete(f"/raffleset/{test_data['raffleset_id']}")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "message" in data
+    assert "deleted successfully" in data["message"]
+
+
+def test_delete_buyer():
+    """Test buyer deletion endpoint."""
+    assert test_data["buyer_id"] is not None
+
+    # Use proper JSON parameter for DELETE request - FastAPI can handle this
+    response = client.request(
+        "DELETE",
+        "/buyer",
+        json={"id": test_data["buyer_id"]}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "message" in data
+    assert "deleted successfully" in data["message"]
 
 
 def test_delete_project():
-    if created_project_id:
-        response = client.delete("/project", params={"id": created_project_id})
-        print(f"Delete project response: {response.status_code}")
-        assert response.status_code == 200
+    """Test project deletion endpoint."""
+    assert test_data["project_id"] is not None
+
+    response = client.delete(f"/project?id={test_data['project_id']}")
+    assert response.status_code == 200
+
+    data = response.json()
+    assert "message" in data
+    assert "deleted successfully" in data["message"]
 
 
-# Test final: Limpiar completamente la base de datos
-def test_zzz_cleanup_database():
-    """Test que se ejecuta al final para limpiar la base de datos completamente"""
-    import subprocess
-    import os
+# Error handling tests
+def test_get_nonexistent_project():
+    """Test getting a non-existent project returns 404."""
+    response = client.get("/project?id=99999")
+    assert response.status_code == 404
 
-    print("🧹 Limpiando base de datos completamente...")
-    try:
-        # Ejecutar el comando para eliminar la base de datos
-        result = subprocess.run([
-            "sudo", "mysql", "-u", "root", "-e",
-            "DROP DATABASE IF EXISTS raffles_draw;"
-        ], capture_output=True, text=True, cwd="/home/gonzadev/Proyectos/python/raffles-manager")
 
-        print(f"Comando ejecutado. Return code: {result.returncode}")
-        if result.stdout:
-            print(f"Output: {result.stdout}")
-        if result.stderr:
-            print(f"Error: {result.stderr}")
+def test_get_nonexistent_buyer():
+    """Test getting a non-existent buyer returns 404."""
+    response = client.get("/buyer?id=99999")
+    assert response.status_code == 404
 
-        # Verificar que se ejecutó correctamente
-        assert result.returncode == 0, f"Error eliminando la base de datos: {result.stderr}"
-        print("✅ Base de datos eliminada exitosamente")
 
-    except Exception as e:
-        print(f"⚠️  Error ejecutando comando de limpieza: {e}")
-        # No fallar el test por esto, solo es limpieza
-        pass
+def test_get_nonexistent_raffle():
+    """Test getting a non-existent raffle returns 404."""
+    response = client.get("/raffle?number=99999")
+    assert response.status_code == 404
+
+
+def test_create_duplicate_project():
+    """Test creating a project with duplicate name returns 400."""
+    # Create first project
+    client.post("/project", json={
+        "name": "Duplicate Test",
+        "description": "First project"
+    })
+
+    # Try to create duplicate
+    response = client.post("/project", json={
+        "name": "Duplicate Test",
+        "description": "Second project"
+    })
+
+    assert response.status_code == 400
 
 
 if __name__ == "__main__":
-    pytest.main([__file__])
+    pytest.main([__file__, "-v"])

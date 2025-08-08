@@ -9,7 +9,7 @@ class BuyerCreate(BaseModel):
 class BuyerDelete(BaseModel):
     id: Optional[int] = None
     name: Optional[str] = None
-    phone: Optional[str] = Field(max_length=20, pattern=r'^\+?\s?\d[\d\s]{5,17}$')
+    phone: Optional[str] = Field(None, max_length=20, pattern=r'^\+?\s?\d[\d\s]{5,17}$')
 
     @model_validator(mode="after")
     def check_valid_fields(self):
@@ -20,9 +20,9 @@ class BuyerDelete(BaseModel):
 
 class BuyerUpdate(BaseModel):
     id: int
-    name: Optional[str] = None
-    phone: Optional[str] = Field(max_length=20, pattern=r'^\+?\s?\d[\d\s]{5,17}$')
-    email: Optional[EmailStr] = Field(max_length=64)
+    name: Optional[str] = Field(None, max_length=60)
+    phone: Optional[str] = Field(None, max_length=20, pattern=r'^\+?\s?\d[\d\s]{5,17}$')
+    email: Optional[EmailStr] = Field(None, max_length=64)
 
     @model_validator(mode="after")
     def check_valid_fields(self):

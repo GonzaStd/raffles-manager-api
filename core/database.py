@@ -41,7 +41,7 @@ def setup_mysql():
                     'sudo', 'mysql', '-u', 'root', '-e', cmd
                 ], check=True, capture_output=True)
             except Exception as e:
-                print(f"There was a problem creating \"{settings.MARIADB_DATABASE}\""
+                print(f"There was a problem creating \"{settings.MARIADB_USERNAME}\""
                       f" user on mysql:\n{e}\n\nCommands used:\n"
-                      + c for c in create_user_commands)
+                      f"{'; '.join(create_user_commands)}")
     return True

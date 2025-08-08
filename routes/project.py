@@ -14,7 +14,8 @@ router = APIRouter()
 def create_project(project: ProjectCreate, db: Session = Depends(get_db)):
     new_project = Project(
         name=project.name,
-        description=project.description
+        description=project.description,
+        user_id=1  # TODO: Replace with actual user ID from authentication
     )
     
     db.add(new_project)

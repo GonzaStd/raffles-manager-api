@@ -5,11 +5,8 @@ from pydantic import (
     AnyUrl,
     BeforeValidator,
     computed_field,
-    MariaDBDsn,
     Field
 )
-
-from pydantic_core import MultiHostUrl
 
 
 def parse_cors(v: Any) -> list[str] | str:
@@ -47,14 +44,8 @@ class Settings(BaseSettings):
     MARIADB_PORT: int
     MARIADB_DATABASE: str
 
-    @computed_field  # type: ignore[misc]
+    @computed_field
     @property
-    def SQLALCHEMY_DATABASE_URI(self) -> MariaDBDsn | MultiHostUrl:
-        return MultiHostUrl.build(
-            scheme="mysql+pymysql",
-            username=self.MARIADB_USERNAME,
-            password=self.MARIADB_PASSWORD,
-            host=self.MARIADB_SERVER,
-            port=self.MARIADB_PORT,
-            path=self.MARIADB_DATABASE
-        )
+    def SQLALCHEMY_DATABASE_URI(self) -> str:
+        # Return simple string instead of complex MariaDBDsn to prevent validation hanging
+        return f"mysql+pymysql://{self.MARIADB_USERNAME}:{self.MARIADB_PASSWORD}@{self.MARIADB_SERVER}:{self.MARIADB_PORT}/{self.MARIADB_DATABASE}"

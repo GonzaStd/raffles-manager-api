@@ -60,7 +60,15 @@ def create_raffleset(
 
     return {
         "message": "RaffleSet and Raffles created",
-        "raffleset": new_raffleset,
+        "raffleset": {
+            "id": new_raffleset.id,
+            "name": new_raffleset.name,
+            "type": new_raffleset.type,
+            "init": new_raffleset.init,
+            "final": new_raffleset.final,
+            "unit_price": new_raffleset.unit_price,
+            "project_id": new_raffleset.project_id
+        },
         "range": f"{start}-{end}"
     }
 

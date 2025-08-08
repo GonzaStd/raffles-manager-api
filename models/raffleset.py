@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, TIMESTAMP, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Integer, String, TIMESTAMP, ForeignKey, CheckConstraint, text
 from sqlalchemy.orm import relationship
 from database.connection import Base
 
@@ -12,7 +12,7 @@ class RaffleSet(Base):
     init = Column(Integer, nullable=False)
     final = Column(Integer, nullable=False)
     unit_price = Column(Integer, nullable=False)
-    creation_date = Column(TIMESTAMP, server_default="CURRENT_TIMESTAMP")
+    creation_date = Column(TIMESTAMP, server_default=text("CURRENT_TIMESTAMP"))
 
     __table_args__ = (
         CheckConstraint("init < final", name="valid_numbers"),

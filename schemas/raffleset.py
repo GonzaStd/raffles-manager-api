@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, ConfigDict
 from typing import Literal, Optional
 
 
@@ -10,23 +10,21 @@ class RaffleSetCreate(BaseModel):
     unit_price: int = Field(..., gt=0)
 
 class RaffleSetOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     init: int
     final: int
     unit_price: int
 
-    class Config:
-        from_attributes = True
-
 class RaffleSetUpdate(BaseModel):
-    id: int
-    name: Optional[str] = Field(..., max_length=60)
-    type: Optional[Literal["online", "physical"]] = Field(...)
-    unit_price: Optional[int] = Field(..., gt=0)
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        from_attributes = True
+    id: int
+    name: Optional[str] = Field(None, max_length=60)
+    type: Optional[Literal["online", "physical"]] = Field(None)
+    unit_price: Optional[int] = Field(None, gt=0)
 
     @model_validator(mode="after")
     def check_valid_fields(self):
