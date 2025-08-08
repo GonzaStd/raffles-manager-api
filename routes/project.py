@@ -1,10 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.exc import IntegrityError
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from models import RaffleSet, Raffle
 from models.project import Project
-from routes import get_record, get_records, create_record
+from routes import get_record, get_records, create_record, update_record
 from schemas.project import ProjectCreate, ProjectUpdate
 
 router = APIRouter()
@@ -41,14 +40,7 @@ def update_project(
     updates: ProjectUpdate,
     db: Session = Depends(get_db)
 ):
-    project_record = get_record(db, Project, updates.id, "Project")
-
-    for field, value in updates.model_dump(exclude_unset=True).items():
-        setattr(project_record, field, value)
-    
-    db.commit()
-    db.refresh(project_record)
-    return project_record
+    return update_record(db, Project, updates)
 
 
 @router.delete("/project")

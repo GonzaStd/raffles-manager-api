@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
 
 
-def get_record(db, Model, _id, model_name, id_field="id"):
+def get_record(db, Model, _id, model_name="Record", id_field="id"):
     """Get a record by ID or custom field name."""
     if id_field == "id":
         record = db.query(Model).filter(Model.id == _id).first()
@@ -41,3 +41,13 @@ def create_record(db, object):
 
     db.refresh(object)
     return object
+
+def update_record(db, Model, schema):
+    record = get_record(db, Model, schema.id)
+
+    for field, value in schema.model_dump(exclude_unset=True).items():
+        setattr(record, field, value)
+
+    db.commit()
+    db.refresh(record)
+    return record

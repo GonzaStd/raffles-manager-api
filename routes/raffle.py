@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from models.raffle import Raffle
-from routes import get_record, get_records
+from routes import get_record, get_records, update_record
 from schemas.raffle import RaffleUpdate, RafflePayment
 
 router = APIRouter()
@@ -52,11 +52,4 @@ def update_raffle(
     updates: RaffleUpdate,
     db: Session = Depends(get_db)
 ):
-    raffle_record = get_record(db, Raffle, updates.number, "Raffle", id_field="number")
-
-    for field, value in updates.model_dump(exclude_unset=True).items():
-        setattr(raffle_record, field, value)
-
-    db.commit()
-    db.refresh(raffle_record)
-    return raffle_record
+    return update_record(db, Raffle, updates)

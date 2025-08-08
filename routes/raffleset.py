@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from models import RaffleSet, Raffle
-from routes import get_record, get_records, create_record
+from routes import get_record, get_records, create_record, update_record
 from schemas.raffleset import RaffleSetCreate, RaffleSetUpdate
 
 router = APIRouter()
@@ -85,14 +84,7 @@ def update_raffleset(
     updates: RaffleSetUpdate,
     db: Session = Depends(get_db)
 ):
-    raffleset_record = get_record(db, RaffleSet, updates.id, "Raffle Set")
-
-    for field, value in updates.model_dump(exclude_unset=True).items():
-        setattr(raffleset_record, field, value)
-
-    db.commit()
-    db.refresh(raffleset_record)
-    return raffleset_record
+    return update_record(db, RaffleSet, updates)
 
 
 @router.delete("/raffleset/{id}")

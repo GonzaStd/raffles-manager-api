@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from models.buyer import Buyer
-from routes import get_record, get_records, create_record
+from routes import get_record, get_records, create_record, update_record
 from schemas.buyer import BuyerCreate, BuyerDelete, BuyerUpdate
 
 router = APIRouter()
@@ -40,14 +40,7 @@ def update_buyer(
     updates: BuyerUpdate,
     db: Session = Depends(get_db)
 ):
-    buyer_record = get_record(db, Buyer, updates.id, "Buyer")
-
-    for field, value in updates.model_dump(exclude_unset=True).items():
-        setattr(buyer_record, field, value)
-    
-    db.commit()
-    db.refresh(buyer_record)
-    return buyer_record
+    return update_record(db, Buyer, updates)
 
 
 @router.delete("/buyer")
