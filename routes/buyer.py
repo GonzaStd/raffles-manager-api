@@ -66,7 +66,7 @@ def update_buyer(
     updates: BuyerUpdate,
     db: Session = Depends(get_db)
 ):
-    buyer_record = get_record(db, Buyer, id, "Buyer")
+    buyer_record = get_record(db, Buyer, updates.id, "Buyer")
 
     for field, value in updates.model_dump(exclude_unset=True).items():
         setattr(buyer_record, field, value)
