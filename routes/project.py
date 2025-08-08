@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from database.connection import get_db
 from models import RaffleSet, Raffle
 from models.project import Project
-from routes import get_record, get_records, create_record, update_record
+from routes import get_record, get_records, create_record, update_record, delete_record
 from schemas.project import ProjectCreate, ProjectUpdate
 
 router = APIRouter()
@@ -49,17 +49,15 @@ def delete_project(
     db: Session = Depends(get_db)
 ):
     project_record = get_record(db, Project, id, "Project")
-    
+
     # Delete rafflesets and raffles associated with the project
     rafflesets = db.query(RaffleSet).filter(RaffleSet.project_id == id).all()
     sets_ids = [set.id for set in rafflesets]
-    
+
     for set_id in sets_ids:
         db.query(Raffle).filter(Raffle.set_id == set_id).delete()
-    
+
     for raffleset in rafflesets:
         db.delete(raffleset)
 
-    db.delete(project_record)
-    db.commit()
-    return {"message": "Project, rafflesets and raffles associated with it, deleted successfully"}
+    return delete_record(db, project_record)

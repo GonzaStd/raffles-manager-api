@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from models.buyer import Buyer
-from routes import get_record, get_records, create_record, update_record
+from routes import get_record, get_records, create_record, update_record, delete_record
 from schemas.buyer import BuyerCreate, BuyerDelete, BuyerUpdate
 
 router = APIRouter()
@@ -47,18 +47,11 @@ def update_buyer(
 def delete_buyer(buyer: BuyerDelete, db: Session = Depends(get_db)):
     if buyer.id:
         buyer_record = get_record(db, Buyer, buyer.id, "Buyer")
-        db.delete(buyer_record)
-        db.commit()
-        return {"message": "Buyer deleted successfully"}
     else:
-        buyer_record = db.query(Buyer).filter(
-            (Buyer.name == buyer.name) & (Buyer.phone == buyer.phone)
-        ).first()
+        buyer_record = db.query(Buyer).filter((Buyer.name == buyer.name) & (Buyer.phone == buyer.phone)).first()
         if not buyer_record:
             raise HTTPException(
                 status_code=404,
                 detail="There isn't any buyer with that pair of name and number."
             )
-        db.delete(buyer_record)
-        db.commit()
-        return {"message": "Buyer deleted successfully"}
+    return delete_record(db, buyer_record)

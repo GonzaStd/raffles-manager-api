@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from models import RaffleSet, Raffle
-from routes import get_record, get_records, create_record, update_record
+from routes import get_record, get_records, create_record, update_record, delete_record
 from schemas.raffleset import RaffleSetCreate, RaffleSetUpdate
 
 router = APIRouter()
@@ -96,14 +96,6 @@ def delete_raffleset(
     if not raffleset_record:
         raise HTTPException(status_code=404, detail="RaffleSet not found")
 
-    db.query(Raffle).filter(Raffle.set_id == id).delete()
-    db.delete(raffleset_record)
-    try:
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="RaffleSet cannot be deleted. Error: " + str(e)
-        )
-    return {"message": "RaffleSet and its raffles deleted successfully"}
+    db.query(Raffle).filter(Raffle.set_id == id).delete() # Delete all raffles with the same set_id
+
+    return delete_record(db, raffleset_record)

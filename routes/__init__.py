@@ -51,3 +51,15 @@ def update_record(db, Model, schema):
     db.commit()
     db.refresh(record)
     return record
+
+def delete_record(db, record):
+    try:
+        db.delete(record)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Record cannot be deleted. Error: " + str(e)
+        )
+    return {"message": "Record deleted successfully"}
