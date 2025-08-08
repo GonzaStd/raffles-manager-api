@@ -15,6 +15,7 @@ def get_raffle(
     db: Session = Depends(get_db)
 ):
     raffle_record = get_record(db, Raffle, number, "Raffle")
+    return raffle_record
 
 
 @router.get("/raffles")
