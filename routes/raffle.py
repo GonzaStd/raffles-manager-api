@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from models.raffle import Raffle
-from routes import get_record
+from routes import get_record, get_records
 from schemas.raffle import RaffleUpdate, RafflePayment
 
 router = APIRouter()
@@ -23,15 +23,7 @@ def get_raffles(
     limit: int = 0,
     db: Session = Depends(get_db)
 ):
-    if limit > 0:
-        return db.query(Raffle).limit(limit).all()
-    elif limit == 0:
-        return db.query(Raffle).all()
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail="Limit must be a non-negative integer."
-        )
+    return get_records(db, Raffle, limit)
 
 
 @router.post("/raffle/pay")

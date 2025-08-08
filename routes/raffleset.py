@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from models import RaffleSet, Raffle
-from routes import get_record
+from routes import get_record, get_records
 from schemas.raffleset import RaffleSetCreate, RaffleSetUpdate
 
 router = APIRouter()
@@ -85,15 +85,7 @@ def get_rafflesets(
     limit: int = 0,
     db: Session = Depends(get_db)
 ):
-    if limit > 0:
-        return db.query(RaffleSet).limit(limit).all()
-    elif limit == 0:
-        return db.query(RaffleSet).all()
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail="Limit must be a non-negative integer."
-        )
+    return get_records(db, RaffleSet, limit)
 
 
 @router.patch("/raffleset/{id}")

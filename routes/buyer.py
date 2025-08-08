@@ -3,7 +3,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from models.buyer import Buyer
-from routes import get_record
+from routes import get_record, get_records
 from schemas.buyer import BuyerCreate, BuyerDelete, BuyerUpdate
 
 router = APIRouter()
@@ -49,15 +49,7 @@ def get_buyers(
     limit: int = 0,
     db: Session = Depends(get_db)
 ):
-    if limit > 0:
-        return db.query(Buyer).limit(limit).all()
-    elif limit == 0:
-        return db.query(Buyer).all()
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail="Limit must be a non-negative integer."
-        )
+    return get_records(db, Buyer, limit)
 
 
 @router.patch("/buyer")

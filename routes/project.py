@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from database.connection import get_db
 from models import RaffleSet, Raffle
 from models.project import Project
-from routes import get_record
+from routes import get_record, get_records
 from schemas.project import ProjectCreate, ProjectUpdate
 
 router = APIRouter()
@@ -44,15 +44,7 @@ def get_projects(
     limit: int = 0,
     db: Session = Depends(get_db)
 ):
-    if limit > 0:
-        return db.query(Project).limit(limit).all()
-    elif limit == 0:
-        return db.query(Project).all()
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail="Limit must be a non-negative integer."
-        )
+    return get_records(db, Project, limit)
 
 
 @router.patch("/project")
