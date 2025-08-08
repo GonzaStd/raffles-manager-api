@@ -3,8 +3,12 @@ USE raffles_draw;
 
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    email VARCHAR(100) NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL
+    username VARCHAR(32) NOT NULL UNIQUE,
+    email VARCHAR(64) NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    creation_date TIMESTAMP,
+    is_active BOOLEAN NOT NULL,
+    updated_at TIMESTAMP
 )
 
 CREATE TABLE IF NOT EXISTS projects (
@@ -33,7 +37,7 @@ CREATE TABLE IF NOT EXISTS buyers (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(60) NOT NULL,
     phone VARCHAR(20) NOT NULL,
-    email VARCHAR(100),
+    email VARCHAR(64),
     register_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_name_phone UNIQUE (name, phone)
 );

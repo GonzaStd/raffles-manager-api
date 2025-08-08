@@ -1,12 +1,13 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.orm import declarative_base
+from sqlalchemy.orm import sessionmaker, DeclarativeBase
+from core.config_loader import settings
 
-DATABASE_URL = "mysql+pymysql://raffles-manager:raffles@localhost/raffles_draw"
+DATABASE_URL = str(settings.SQLALCHEMY_DATABASE_URI) #"mysql+pymysql://raffles-manager:raffles@localhost/raffles_draw"
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
 
 def get_db():
     db = SessionLocal()

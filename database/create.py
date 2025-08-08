@@ -1,5 +1,5 @@
 from sqlalchemy import text
-from config import sys_engine
+from core import sys_engine
 from pathlib import Path
 structure_path = Path(__file__).resolve().parent / "structure.sql"
 
