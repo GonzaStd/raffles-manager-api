@@ -32,7 +32,7 @@ class RaffleSetUpdate(BaseModel):
     def check_valid_fields(self):
         id, name, type, unit_price = (self.id, self.name, self.type, self.unit_price)
         if id:
-            if name or not type or not unit_price:
+            if name is None and type is None and unit_price is None:
                 raise ValueError("You must modify/update at least one value.")
         else:
             raise ValueError("Set id is required.")
