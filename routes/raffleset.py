@@ -49,10 +49,11 @@ def create_raffleset(
 
     raffles = [
         Raffle(
+            number=n,
             set_id=new_raffleset.id,
             state="available"
         )
-        for _n in range(start, end + 1)
+        for n in range(start, end + 1)
     ]
     db.bulk_save_objects(raffles)
     db.commit()
