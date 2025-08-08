@@ -9,7 +9,7 @@ class Buyer(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(60), nullable=False)
     phone = Column(String(20), nullable=False)
-    email = Column(String(100))
+    email = Column(String(64))
     register_date = Column(TIMESTAMP, server_default="CURRENT_TIMESTAMP")
 
     __table_args__ = (
