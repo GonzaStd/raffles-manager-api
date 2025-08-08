@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, TIMESTAMP, UniqueConstraint
 from sqlalchemy.orm import relationship
-from database import Base
+from database.connection import Base
 
 
 class Buyer(Base):
@@ -17,4 +17,3 @@ class Buyer(Base):
     )
 
     raffles = relationship("Raffle", back_populates="buyer")
-
