@@ -10,44 +10,6 @@ created_buyer_id = None
 created_project_id = None
 created_raffleset_id = None
 
-# Test Buyers
-def test_create_buyer():
-    global created_buyer_id
-    response = client.post("/buyer", json={
-        "name": "Juan Perez",  # Sin acentos para evitar problemas de codificación
-        "phone": "+57 300 123 4567",
-        "email": "juan@email.com"
-    })
-    print(f"Create buyer response: {response.status_code}, {response.text}")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["name"] == "Juan Perez"
-    assert "id" in data
-    created_buyer_id = data["id"]
-
-
-def test_get_buyer():
-    if created_buyer_id:
-        response = client.get("/buyer", params={"id": created_buyer_id})
-        print(f"Get buyer response: {response.status_code}, {response.text}")
-        assert response.status_code == 200
-
-
-def test_get_all_buyers():
-    response = client.get("/buyers", params={"limit": 10})
-    print(f"Get all buyers response: {response.status_code}")
-    assert response.status_code == 200
-
-
-def test_update_buyer():
-    if created_buyer_id:
-        response = client.patch("/buyer", params={"id": created_buyer_id}, json={
-            "email": "nuevo@email.com"
-        })
-        print(f"Update buyer response: {response.status_code}, {response.text}")
-        assert response.status_code == 200
-
-
 # Test Projects
 def test_create_project():
     global created_project_id
@@ -94,7 +56,6 @@ def test_update_project():
         })
         print(f"Update project response: {response.status_code}, {response.text}")
         assert response.status_code == 200
-
 
 # Test RaffleSets
 def test_create_raffleset():
@@ -146,6 +107,43 @@ def test_update_raffleset():
     else:
         pytest.skip("No raffleset created to test")
 
+# Test Buyers
+def test_create_buyer():
+    global created_buyer_id
+    response = client.post("/buyer", json={
+        "name": "Juan Perez",  # Sin acentos para evitar problemas de codificación
+        "phone": "+57 300 123 4567",
+        "email": "juan@email.com"
+    })
+    print(f"Create buyer response: {response.status_code}, {response.text}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "Juan Perez"
+    assert "id" in data
+    created_buyer_id = data["id"]
+
+
+def test_get_buyer():
+    if created_buyer_id:
+        response = client.get("/buyer", params={"id": created_buyer_id})
+        print(f"Get buyer response: {response.status_code}, {response.text}")
+        assert response.status_code == 200
+
+
+def test_get_all_buyers():
+    response = client.get("/buyers", params={"limit": 10})
+    print(f"Get all buyers response: {response.status_code}")
+    assert response.status_code == 200
+
+
+def test_update_buyer():
+    if created_buyer_id:
+        response = client.patch("/buyer", params={"id": created_buyer_id}, json={
+            "email": "nuevo@email.com"
+        })
+        print(f"Update buyer response: {response.status_code}, {response.text}")
+        assert response.status_code == 200
+
 
 # Test Raffles
 def test_get_raffle():
@@ -162,6 +160,7 @@ def test_get_all_raffles():
 
 
 def test_pay_raffle():
+    buyer_id = None
     # Ensure we have a buyer
     if not created_buyer_id:
         buyer_response = client.post("/buyer", json={
