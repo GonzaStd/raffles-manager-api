@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import buyer, project, raffleset, raffle
+from routes import buyer, project, raffleset, raffle, auth
 from typing import cast
 
 app = FastAPI()
@@ -21,6 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(buyer.router, tags=["Buyers"])
 app.include_router(project.router, tags=["Projects"])
 app.include_router(raffleset.router, tags=["Raffle Sets"])

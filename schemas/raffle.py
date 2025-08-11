@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, model_validator
 from typing import Literal, Optional
 
 class RaffleUpdate(BaseModel):
-    number: int
+    number: int = Field(..., ge=1),
     buyer_id: Optional[int] = None
     payment_method: Optional[Literal["cash", "card", "transfer"]] = None
     state: Optional[Literal["available", "sold", "reserved"]] = None
@@ -18,7 +18,7 @@ class RaffleUpdate(BaseModel):
         return self
 
 class RafflePayment(BaseModel):
-    number: int
+    number: int = Field(..., ge=1),
     buyer_id: int
     payment_method: Literal["cash", "card", "transfer"]
     state: Literal["sold", "reserved"]

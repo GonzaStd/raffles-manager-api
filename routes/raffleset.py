@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database.connection import get_db
-from models import RaffleSet, Raffle
+from models import RaffleSet, Raffle, Project
+from models.users import User
 from routes import get_record, get_records, create_record, update_record, delete_record
-from schemas.raffleset import RaffleSetCreate, RaffleSetUpdate
+from schemas.raffleset import RaffleSetCreate, RaffleSetUpdate, RaffleSetDelete
+from auth.services.auth_service import get_current_active_user
 
 router = APIRouter()
 
@@ -11,8 +13,14 @@ router = APIRouter()
 @router.post("/raffleset")
 def create_raffleset(
     raffleset: RaffleSetCreate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
+    # Verificar que el proyecto pertenece al usuario
+    project = get_record(db, Project, raffleset.project_id, "Project")
+    if project.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied: not your project")
+
     # Find the last raffle number for this specific project (across all sets)
     last_number = (
         db.query(Raffle.number)
@@ -66,36 +74,54 @@ def create_raffleset(
 @router.get("/raffleset/{id}")
 def get_raffleset(
     id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
-    return get_record(db, RaffleSet, id, "Raffle Set")
+    raffleset = get_record(db, RaffleSet, id, "Raffle Set")
+    # Verificar que el raffleset pertenece a un proyecto del usuario
+    project = get_record(db, Project, raffleset.project_id, "Project")
+    if project.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied: not your project")
+    return raffleset
+
 
 @router.get("/rafflesets")
 def get_rafflesets(
     limit: int = 0,
-    db: Session = Depends(get_db)
+    offset: int = 0,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
-    return get_records(db, RaffleSet, limit)
+    return get_records(db, RaffleSet, limit, offset)
 
 
-@router.patch("/raffleset/{id}")
-@router.put("/raffleset/{id}")
+@router.patch("/raffleset")
 def update_raffleset(
     updates: RaffleSetUpdate,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
+    raffleset = get_record(db, RaffleSet, updates.id, "Raffle Set")
+    project = get_record(db, Project, raffleset.project_id, "Project")
+    if project.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied: not your project")
     return update_record(db, RaffleSet, updates)
 
 
-@router.delete("/raffleset/{id}")
+@router.delete("/raffleset")
 def delete_raffleset(
-    id: int,
-    db: Session = Depends(get_db)
+    raffleset_data: RaffleSetDelete,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
 ):
-    raffleset_record = db.query(RaffleSet).filter(RaffleSet.id == id).first()
-    if not raffleset_record:
-        raise HTTPException(status_code=404, detail="RaffleSet not found")
+    raffleset = get_record(db, RaffleSet, raffleset_data.id, "Raffle Set")
+    project = get_record(db, Project, raffleset.project_id, "Project")
+    if project.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied: not your project")
 
-    db.query(Raffle).filter(Raffle.set_id == id).delete() # Delete all raffles with the same set_id
+    # Delete associated raffles first
+    raffles = db.query(Raffle).filter(Raffle.set_id == raffleset_data.id).all()
+    for raffle in raffles:
+        db.delete(raffle)
 
-    return delete_record(db, raffleset_record)
+    return delete_record(db, raffleset)

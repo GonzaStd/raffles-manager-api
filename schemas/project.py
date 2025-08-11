@@ -5,8 +5,11 @@ class ProjectCreate(BaseModel):
     name: str = Field(..., max_length=60)
     description: Optional[str] = None
 
+class ProjectDelete(BaseModel):
+    id: int = Field(..., ge=1),
+
 class ProjectUpdate(BaseModel):
-    id: int
+    id: int = Field(..., ge=1),
     name: Optional[str] = None
     description: Optional[str] = None
 

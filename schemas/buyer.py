@@ -7,7 +7,7 @@ class BuyerCreate(BaseModel):
     email: Optional[EmailStr] = Field(max_length=64)
 
 class BuyerDelete(BaseModel):
-    id: Optional[int] = None
+    id: int = Field(..., ge=1)
     name: Optional[str] = None
     phone: Optional[str] = Field(None, max_length=20, pattern=r'^\+?\s?\d[\d\s]{5,17}$')
 
@@ -19,7 +19,7 @@ class BuyerDelete(BaseModel):
         return self
 
 class BuyerUpdate(BaseModel):
-    id: int
+    id: int = Field(..., ge=1)
     name: Optional[str] = Field(None, max_length=60)
     phone: Optional[str] = Field(None, max_length=20, pattern=r'^\+?\s?\d[\d\s]{5,17}$')
     email: Optional[EmailStr] = Field(None, max_length=64)

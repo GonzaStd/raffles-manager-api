@@ -3,16 +3,19 @@ from typing import Literal, Optional
 
 
 class RaffleSetCreate(BaseModel):
-    project_id: int
+    project_id: int = Field(..., ge=1),
     name: str = Field(..., max_length=60)
     type: Literal["online", "physical"]
     requested_count: int = Field(..., gt=0) # Not in database, used for raffles creation
     unit_price: int = Field(..., gt=0)
 
+class RaffleSetDelete(BaseModel):
+    id: int
+
 class RaffleSetOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: int = Field(..., ge=1),
     name: str
     init: int
     final: int
@@ -21,7 +24,7 @@ class RaffleSetOut(BaseModel):
 class RaffleSetUpdate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: int = Field(..., ge=1),
     name: Optional[str] = Field(None, max_length=60)
     type: Optional[Literal["online", "physical"]] = Field(None)
     unit_price: Optional[int] = Field(None, gt=0)

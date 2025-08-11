@@ -31,7 +31,6 @@ CREATE TABLE IF NOT EXISTS raffle_sets (
     unit_price INT NOT NULL,
     creation_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT valid_numbers CHECK (init <= final),
-    CONSTRAINT unique_set UNIQUE (project_id, name),
     FOREIGN KEY (project_id) REFERENCES projects(id)
 );
 

@@ -17,37 +17,32 @@ def get_record(db, Model, _id, model_name="Record", id_field="id"):
         raise HTTPException(status_code=404, detail=f"{model_name} not found")
     return record
 
-def get_records(db, Model, limit: int):
+def get_records(db, Model, limit: int, offset: int = 0):
+    """Get multiple records with limit and offset support."""
+    query = db.query(Model)
+    if offset > 0:
+        query = query.offset(offset)
     if limit > 0:
-        return db.query(Model).order_by(Model.id.desc()).limit(limit).all().sort(reverse=True)
-    elif limit == 0:
-        return db.query(Model).all()
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail="Limit must be a non-negative integer."
-        )
+        query = query.limit(limit)
+    return query.all()
 
-def create_record(db, object):
-    db.add(object)
+def create_record(db, new_record):
+    """Create a new record in the database."""
     try:
+        db.add(new_record)
         db.commit()
-    except IntegrityError:
+        db.refresh(new_record)
+        return new_record
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="Can't create a new record with that values."
-        )
-
-    db.refresh(object)
-    return object
+        raise HTTPException(status_code=400, detail="Record already exists or violates constraints")
 
 def update_record(db, Model, schema, id_field="id"):
     record = None
     if id_field == "id":
-        record = get_record(db, Model, schema.id)
+        record = get_record(db, Model, schema.id, Model.__name__)
     elif id_field == "number":
-        record = get_record(db, Model, schema.number)
+        record = get_record(db, Model, schema.number, Model.__name__, "number")
 
     for field, value in schema.model_dump(exclude_unset=True).items():
         setattr(record, field, value)
