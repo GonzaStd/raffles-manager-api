@@ -36,7 +36,7 @@ class Settings(BaseSettings):
             return f"http://{self.DOMAIN}"
         return f"https://{self.DOMAIN}"
 
-    BACKEND_CORS_ORIGINS: list[str] = Field(default_factory=tuple)
+    BACKEND_CORS_ORIGINS: list[str] = Field(default_factory=list)
 
     # Local development variables (from .env)
     MARIADB_USERNAME: str = ""
@@ -45,20 +45,28 @@ class Settings(BaseSettings):
     MARIADB_PORT: int = 3306
     MARIADB_DATABASE: str = ""
 
-    # Railway production variables
-    MYSQLUSER: str = ""
-    MYSQLPASSWORD: str = ""
-    MYSQLHOST: str = ""
-    MYSQLPORT: int = 3306
-    MYSQLDATABASE: str = ""
+    # Railway production variables - use the full DATABASE_URL that Railway provides
+    DATABASE_URL: str = ""  # Railway's complete database URL
+    MYSQL_URL: str = ""     # Alternative Railway variable name
 
     @computed_field
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
-        # Use Railway variables if available (production), otherwise use local variables
-        if self.MYSQLUSER and self.MYSQLHOST:
-            # Production environment with Railway variables
-            return f"mysql+pymysql://{self.MYSQLUSER}:{self.MYSQLPASSWORD}@{self.MYSQLHOST}:{self.MYSQLPORT}/{self.MYSQLDATABASE}"
+        # First priority: Use DATABASE_URL if available (Railway standard)
+        if self.DATABASE_URL:
+            # Convert mysql:// to mysql+pymysql://
+            url = self.DATABASE_URL
+            if url.startswith("mysql://"):
+                url = url.replace("mysql://", "mysql+pymysql://", 1)
+            return url
+
+        # Second priority: Use MYSQL_URL if available
+        elif self.MYSQL_URL:
+            url = self.MYSQL_URL
+            if url.startswith("mysql://"):
+                url = url.replace("mysql://", "mysql+pymysql://", 1)
+            return url
+
+        # Fallback: Local development with .env variables
         else:
-            # Local development with .env variables
             return f"mysql+pymysql://{self.MARIADB_USERNAME}:{self.MARIADB_PASSWORD}@{self.MARIADB_SERVER}:{self.MARIADB_PORT}/{self.MARIADB_DATABASE}"

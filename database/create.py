@@ -6,17 +6,19 @@ structure_path = Path(__file__).resolve().parent / "structure.sql"
 
 def get_sys_engine():
     """Create system engine for database operations"""
-    # Use Railway variables if available, otherwise local
-    if settings.MYSQLUSER and settings.MYSQLHOST:
+    # Use the same URL that the main app uses
+    database_url = settings.SQLALCHEMY_DATABASE_URI
+
+    if settings.DATABASE_URL or settings.MYSQL_URL:
         # Railway environment - connect directly to the database (it already exists)
-        return create_engine(f"mysql+pymysql://{settings.MYSQLUSER}:{settings.MYSQLPASSWORD}@{settings.MYSQLHOST}:{settings.MYSQLPORT}/{settings.MYSQLDATABASE}")
+        return create_engine(database_url)
     else:
-        # Local environment - connect to server without database
+        # Local environment - connect to server without database for creation
         return create_engine(f"mysql+pymysql://{settings.MARIADB_USERNAME}:{settings.MARIADB_PASSWORD}@{settings.MARIADB_SERVER}")
 
 def db_exists(db: str):
     """Check if database exists (only for local development)"""
-    if settings.MYSQLUSER and settings.MYSQLHOST:
+    if settings.DATABASE_URL or settings.MYSQL_URL:
         # In Railway, the database always exists
         return True
 
@@ -29,7 +31,7 @@ def db_exists(db: str):
 def create_database():
     """Create database and tables"""
     try:
-        if settings.MYSQLUSER and settings.MYSQLHOST:
+        if settings.DATABASE_URL or settings.MYSQL_URL:
             # Railway environment - just create tables in existing database
             engine = get_sys_engine()
 
