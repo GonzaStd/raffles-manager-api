@@ -38,3 +38,12 @@ class RaffleSetUpdate(BaseModel):
         else:
             raise ValueError("Set id is required.")
         return self
+
+class RaffleSetPut(BaseModel):
+    """Schema for PUT operations - requires all fields for complete resource replacement"""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int = Field(..., ge=1)
+    name: str = Field(..., max_length=60)
+    type: Literal["online", "physical"]
+    unit_price: int = Field(..., gt=0)

@@ -4,7 +4,7 @@ from database.connection import get_db
 from models import RaffleSet, Raffle, Project
 from models.users import User
 from routes import get_record, get_records, create_record, update_record, delete_record
-from schemas.raffleset import RaffleSetCreate, RaffleSetUpdate, RaffleSetDelete
+from schemas.raffleset import RaffleSetCreate, RaffleSetUpdate, RaffleSetDelete, RaffleSetPut
 from auth.services.auth_service import get_current_active_user
 
 router = APIRouter()
@@ -106,6 +106,26 @@ def update_raffleset(
     if project.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Access denied: not your project")
     return update_record(db, RaffleSet, updates)
+
+
+@router.put("/raffleset")
+def replace_raffleset(
+    raffleset_data: RaffleSetPut,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    raffleset = get_record(db, RaffleSet, raffleset_data.id, "Raffle Set")
+    project = get_record(db, Project, raffleset.project_id, "Project")
+    if project.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Access denied: not your project")
+
+    raffleset.name = raffleset_data.name
+    raffleset.type = raffleset_data.type
+    raffleset.unit_price = raffleset_data.unit_price
+
+    db.commit()
+    db.refresh(raffleset)
+    return raffleset
 
 
 @router.delete("/raffleset")
