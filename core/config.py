@@ -38,14 +38,27 @@ class Settings(BaseSettings):
 
     BACKEND_CORS_ORIGINS: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = Field(default=lambda: [])
 
-    MARIADB_USERNAME: str
-    MARIADB_PASSWORD: str
-    MARIADB_SERVER: str
-    MARIADB_PORT: int
-    MARIADB_DATABASE: str
+    # Local development variables (from .env)
+    MARIADB_USERNAME: str = ""
+    MARIADB_PASSWORD: str = ""
+    MARIADB_SERVER: str = ""
+    MARIADB_PORT: int = 3306
+    MARIADB_DATABASE: str = ""
+
+    # Railway production variables
+    MYSQLUSER: str = ""
+    MYSQLPASSWORD: str = ""
+    MYSQLHOST: str = ""
+    MYSQLPORT: int = 3306
+    MYSQLDATABASE: str = ""
 
     @computed_field
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
-        # Return simple string instead of complex MariaDBDsn to prevent validation hanging
-        return f"mysql+pymysql://{self.MARIADB_USERNAME}:{self.MARIADB_PASSWORD}@{self.MARIADB_SERVER}:{self.MARIADB_PORT}/{self.MARIADB_DATABASE}"
+        # Use Railway variables if available (production), otherwise use local variables
+        if self.MYSQLUSER and self.MYSQLHOST:
+            # Production environment with Railway variables
+            return f"mysql+pymysql://{self.MYSQLUSER}:{self.MYSQLPASSWORD}@{self.MYSQLHOST}:{self.MYSQLPORT}/{self.MYSQLDATABASE}"
+        else:
+            # Local development with .env variables
+            return f"mysql+pymysql://{self.MARIADB_USERNAME}:{self.MARIADB_PASSWORD}@{self.MARIADB_SERVER}:{self.MARIADB_PORT}/{self.MARIADB_DATABASE}"
