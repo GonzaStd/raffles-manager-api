@@ -31,3 +31,12 @@ app.include_router(buyer.router, tags=["Buyers"])
 app.include_router(project.router, tags=["Projects"])
 app.include_router(raffleset.router, tags=["Raffle Sets"])
 app.include_router(raffle.router, tags=["Raffles"])
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )
