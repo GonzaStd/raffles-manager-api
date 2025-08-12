@@ -1,0 +1,863 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Raffles Manager API",
+    "description": "Simple API for managing raffle projects, buyers and raffles.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development server."
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "tags": ["System"],
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "healthy"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "User login",
+        "tags": ["Authentication"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                },
+                "required": ["username", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Token"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials"
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "summary": "Register new user",
+        "tags": ["Authentication"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserCredentials"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User registered successfully"
+          },
+          "400": {
+            "description": "Email already exists"
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "Get current user info",
+        "tags": ["Authentication"],
+        "responses": {
+          "200": {
+            "description": "Current user data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/project": {
+      "post": {
+        "summary": "Create project",
+        "tags": ["Projects"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project created"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get project by ID",
+        "tags": ["Projects"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project details"
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update project",
+        "tags": ["Projects"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project updated"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete project",
+        "tags": ["Projects"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectDelete"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project deleted"
+          }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "summary": "List projects",
+        "tags": ["Projects"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of projects"
+          }
+        }
+      }
+    },
+    "/buyer": {
+      "post": {
+        "summary": "Create buyer",
+        "tags": ["Buyers"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuyerCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Buyer created"
+          }
+        }
+      },
+      "get": {
+        "summary": "Get buyer by ID",
+        "tags": ["Buyers"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Buyer details"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update buyer",
+        "tags": ["Buyers"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuyerUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Buyer updated"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete buyer",
+        "tags": ["Buyers"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuyerDelete"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Buyer deleted"
+          }
+        }
+      }
+    },
+    "/buyers": {
+      "get": {
+        "summary": "List buyers",
+        "tags": ["Buyers"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of buyers"
+          }
+        }
+      }
+    },
+    "/raffleset": {
+      "post": {
+        "summary": "Create raffle set",
+        "tags": ["Raffle Sets"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RaffleSetCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Raffle set and tickets created"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update raffle set",
+        "tags": ["Raffle Sets"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RaffleSetUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Raffle set updated"
+          }
+        }
+      },
+      "put": {
+        "summary": "Replace raffle set",
+        "tags": ["Raffle Sets"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RaffleSetPut"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Raffle set replaced"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete raffle set",
+        "tags": ["Raffle Sets"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RaffleSetDelete"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Raffle set deleted"
+          }
+        }
+      }
+    },
+    "/raffleset/{id}": {
+      "get": {
+        "summary": "Get raffle set by ID",
+        "tags": ["Raffle Sets"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Raffle set details"
+          }
+        }
+      }
+    },
+    "/rafflesets": {
+      "get": {
+        "summary": "List raffle sets",
+        "tags": ["Raffle Sets"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of raffle sets"
+          }
+        }
+      }
+    },
+    "/raffle": {
+      "get": {
+        "summary": "Get raffle by number",
+        "tags": ["Raffles"],
+        "parameters": [
+          {
+            "name": "number",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Raffle details"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update raffle",
+        "tags": ["Raffles"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RaffleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Raffle updated"
+          }
+        }
+      }
+    },
+    "/raffles": {
+      "get": {
+        "summary": "List raffles",
+        "tags": ["Raffles"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of raffles"
+          }
+        }
+      }
+    },
+    "/raffle/pay": {
+      "post": {
+        "summary": "Process raffle payment",
+        "tags": ["Raffles"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RafflePayment"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment processed"
+          },
+          "400": {
+            "description": "Raffle not available for payment"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Token": {
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "token_type": {
+            "type": "string",
+            "example": "bearer"
+          }
+        }
+      },
+      "UserCredentials": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 100
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": ["email", "password"]
+      },
+      "UserInfo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "is_active": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ProjectCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": ["name"]
+      },
+      "ProjectUpdate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": ["id"]
+      },
+      "ProjectDelete": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": ["id"]
+      },
+      "BuyerCreate": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 20,
+            "pattern": "^\\+?\\s?\\d[\\d\\s]{5,17}$"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 64,
+            "nullable": true
+          }
+        },
+        "required": ["name", "phone"]
+      },
+      "BuyerUpdate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 20,
+            "pattern": "^\\+?\\s?\\d[\\d\\s]{5,17}$",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 64,
+            "nullable": true
+          }
+        },
+        "required": ["id"]
+      },
+      "BuyerDelete": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 20,
+            "pattern": "^\\+?\\s?\\d[\\d\\s]{5,17}$",
+            "nullable": true
+          }
+        },
+        "required": ["id"]
+      },
+      "RaffleSetCreate": {
+        "type": "object",
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "type": {
+            "type": "string",
+            "enum": ["online", "physical"]
+          },
+          "requested_count": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Number of tickets to create"
+          },
+          "unit_price": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": ["project_id", "name", "type", "requested_count", "unit_price"]
+      },
+      "RaffleSetUpdate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 60,
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "enum": ["online", "physical"],
+            "nullable": true
+          },
+          "unit_price": {
+            "type": "integer",
+            "minimum": 1,
+            "nullable": true
+          }
+        },
+        "required": ["id"]
+      },
+      "RaffleSetPut": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "type": {
+            "type": "string",
+            "enum": ["online", "physical"]
+          },
+          "unit_price": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "required": ["id", "name", "type", "unit_price"]
+      },
+      "RaffleSetDelete": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          }
+        },
+        "required": ["id"]
+      },
+      "RaffleUpdate": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "buyer_id": {
+            "type": "integer",
+            "nullable": true
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": ["cash", "card", "transfer"],
+            "nullable": true
+          },
+          "state": {
+            "type": "string",
+            "enum": ["available", "sold", "reserved"],
+            "nullable": true
+          }
+        },
+        "required": ["number"]
+      },
+      "RafflePayment": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "buyer_id": {
+            "type": "integer"
+          },
+          "payment_method": {
+            "type": "string",
+            "enum": ["cash", "card", "transfer"]
+          },
+          "state": {
+            "type": "string",
+            "enum": ["sold", "reserved"]
+          }
+        },
+        "required": ["number", "buyer_id", "payment_method", "state"]
+      }
+    }
+  }
+}
