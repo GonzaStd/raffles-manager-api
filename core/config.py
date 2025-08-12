@@ -36,7 +36,7 @@ class Settings(BaseSettings):
             return f"http://{self.DOMAIN}"
         return f"https://{self.DOMAIN}"
 
-    BACKEND_CORS_ORIGINS: Annotated[list[AnyUrl] | str, BeforeValidator(parse_cors)] = Field(default=lambda: [])
+    BACKEND_CORS_ORIGINS: list[str] = Field(default_factory=tuple)
 
     # Local development variables (from .env)
     MARIADB_USERNAME: str = ""
