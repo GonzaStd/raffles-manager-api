@@ -21,6 +21,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Health check endpoint for Railway
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
+
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(buyer.router, tags=["Buyers"])
 app.include_router(project.router, tags=["Projects"])

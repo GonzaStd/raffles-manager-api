@@ -3,6 +3,15 @@
   <component name="CopilotDiffPersistence">
     <option name="pendingDiffs">
       <map>
+        <entry key="$PROJECT_DIR$/database/connection.py">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/database/connection.py" />
+              <option name="originalContent" value="from sqlalchemy import create_engine&#10;from sqlalchemy.orm import sessionmaker, DeclarativeBase&#10;from core.config_loader import settings&#10;&#10;# Create database URL but don't test connection during import&#10;DATABASE_URL = str(settings.SQLALCHEMY_DATABASE_URI)&#10;&#10;# Use pool settings to prevent hanging connections&#10;engine = create_engine(&#10;    DATABASE_URL,&#10;    pool_pre_ping=True,&#10;    pool_recycle=300,&#10;    connect_args={&quot;connect_timeout&quot;: 10}&#10;)&#10;SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)&#10;&#10;class Base(DeclarativeBase):&#10;    pass&#10;&#10;def get_db():&#10;    db = SessionLocal()&#10;    try:&#10;        yield db&#10;    finally:&#10;        db.close()" />
+              <option name="updatedContent" value="from sqlalchemy import create_engine, text&#10;from sqlalchemy.orm import sessionmaker, DeclarativeBase&#10;from core.config_loader import settings&#10;&#10;# Create database URL but don't test connection during import&#10;DATABASE_URL = str(settings.SQLALCHEMY_DATABASE_URI)&#10;&#10;# Use pool settings to prevent hanging connections&#10;engine = create_engine(&#10;    DATABASE_URL,&#10;    pool_pre_ping=True,&#10;    pool_recycle=300,&#10;    connect_args={&quot;connect_timeout&quot;: 10}&#10;)&#10;SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)&#10;&#10;class Base(DeclarativeBase):&#10;    pass&#10;&#10;def get_db():&#10;    db = SessionLocal()&#10;    try:&#10;        yield db&#10;    finally:&#10;        db.close()" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
         <entry key="$PROJECT_DIR$/database/create-database-mysql.sql">
           <value>
             <PendingDiffInfo>
@@ -26,6 +35,23 @@
             <PendingDiffInfo>
               <option name="filePath" value="$PROJECT_DIR$/database/test_database.py" />
               <option name="updatedContent" value="#!/usr/bin/env python3&#10;        print(&quot;❌ Some tests failed. Please check the database setup.&quot;)&#10;        sys.exit(1)&#10;&#10;if __name__ == &quot;__main__&quot;:&#10;    main()" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/main.py">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/main.py" />
+              <option name="originalContent" value="from fastapi import FastAPI&#10;from fastapi.middleware.cors import CORSMiddleware&#10;from routes import buyer, project, raffleset, raffle, auth&#10;from typing import cast&#10;&#10;app = FastAPI()&#10;&#10;origins = [&#10;    &quot;http://localhost:3000&quot;,&#10;    &quot;http://localhost:8080&quot;,&#10;    &quot;http://127.0.0.1:3000&quot;,&#10;    &quot;http://127.0.0.1:8080&quot;,&#10;    &quot;*&quot;&#10;]&#10;&#10;app.add_middleware(&#10;    cast(type, CORSMiddleware),  # type: ignore&#10;    allow_origins=origins,&#10;    allow_credentials=True,&#10;    allow_methods=[&quot;*&quot;],&#10;    allow_headers=[&quot;*&quot;],&#10;)&#10;&#10;app.include_router(auth.router, prefix=&quot;/auth&quot;, tags=[&quot;Authentication&quot;])&#10;app.include_router(buyer.router, tags=[&quot;Buyers&quot;])&#10;app.include_router(project.router, tags=[&quot;Projects&quot;])&#10;app.include_router(raffleset.router, tags=[&quot;Raffle Sets&quot;])&#10;app.include_router(raffle.router, tags=[&quot;Raffles&quot;])&#10;" />
+              <option name="updatedContent" value="from fastapi import FastAPI&#10;from fastapi.middleware.cors import CORSMiddleware&#10;from routes import buyer, project, raffleset, raffle, auth&#10;from typing import cast&#10;&#10;app = FastAPI()&#10;&#10;origins = [&#10;    &quot;http://localhost:3000&quot;,&#10;    &quot;http://localhost:8080&quot;,&#10;    &quot;http://127.0.0.1:3000&quot;,&#10;    &quot;http://127.0.0.1:8080&quot;,&#10;    &quot;*&quot;&#10;]&#10;&#10;app.add_middleware(&#10;    cast(type, CORSMiddleware),  # type: ignore&#10;    allow_origins=origins,&#10;    allow_credentials=True,&#10;    allow_methods=[&quot;*&quot;],&#10;    allow_headers=[&quot;*&quot;],&#10;)&#10;&#10;# Health check endpoint for Railway&#10;@app.get(&quot;/health&quot;)&#10;async def health_check():&#10;    return {&quot;status&quot;: &quot;healthy&quot;}&#10;&#10;app.include_router(auth.router, prefix=&quot;/auth&quot;, tags=[&quot;Authentication&quot;])&#10;app.include_router(buyer.router, tags=[&quot;Buyers&quot;])&#10;app.include_router(project.router, tags=[&quot;Projects&quot;])&#10;app.include_router(raffleset.router, tags=[&quot;Raffle Sets&quot;])&#10;app.include_router(raffle.router, tags=[&quot;Raffles&quot;])" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/railway.toml">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/railway.toml" />
+              <option name="updatedContent" value="[build]&#10;builder = &quot;nixpacks&quot;&#10;&#10;[deploy]&#10;startCommand = &quot;uvicorn main:app --host 0.0.0.0 --port $PORT&quot;&#10;healthcheckPath = &quot;/health&quot;&#10;healthcheckTimeout = 300&#10;&#10;[env]&#10;PYTHONPATH = &quot;/app:$PYTHONPATH&quot;" />
             </PendingDiffInfo>
           </value>
         </entry>
