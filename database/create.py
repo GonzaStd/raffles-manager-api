@@ -5,13 +5,6 @@ from database.connection import Base, engine
 from pathlib import Path
 import logging
 
-# Importar TODOS los modelos explícitamente para que SQLAlchemy los reconozca
-from models.users import User
-from models.project import Project
-from models.buyer import Buyer
-from models.raffleset import RaffleSet
-from models.raffle import Raffle
-
 logger = logging.getLogger(__name__)
 
 structure_path = Path(__file__).resolve().parent / "structure.sql"
@@ -49,6 +42,13 @@ def check_tables_exist():
 def create_tables_sqlalchemy():
     """Create tables using SQLAlchemy"""
     try:
+        # Import models here to avoid circular imports
+        from models.users import User
+        from models.project import Project
+        from models.buyer import Buyer
+        from models.raffleset import RaffleSet
+        from models.raffle import Raffle
+
         logger.info("Creating tables using SQLAlchemy...")
         Base.metadata.create_all(bind=engine)
         logger.info("Tables created successfully using SQLAlchemy")
