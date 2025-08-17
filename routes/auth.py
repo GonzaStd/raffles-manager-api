@@ -31,8 +31,8 @@ def register_user(user_data: UserCreate, db: Session = Depends(get_db)):
 
             # Respuesta genérica para prevenir user enumeration
             return {
-                "message": "Registration completed successfully",
-                "detail": "Your account has been created successfully"
+                "message": "Username already exists",
+                "detail": "Couldn't create account"
             }
 
         # Crear nuevo usuario
