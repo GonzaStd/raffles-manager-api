@@ -36,9 +36,9 @@ def authenticate_user(db: Session, username: str, password: str):
 def create_access_token(subject: str, expires_delta: Optional[timedelta] = None):
     """Crear token JWT de acceso"""
     if expires_delta:
-        expire = datetime.now() + expires_delta
+        expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.now() + timedelta(minutes=15)
+        expire = datetime.utcnow() + timedelta(minutes=15)
 
     to_encode = {"exp": expire, "sub": str(subject)}
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
