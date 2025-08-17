@@ -1,49 +1,41 @@
 from pydantic import BaseModel, Field, model_validator, ConfigDict
 from typing import Literal, Optional
+from datetime import datetime
 
 
 class RaffleSetCreate(BaseModel):
-    project_id: int = Field(..., ge=1),
+    """Schema para crear un nuevo set de rifas"""
     name: str = Field(..., max_length=60)
+    project_id: int = Field(..., ge=1)
     type: Literal["online", "physical"]
-    requested_count: int = Field(..., gt=0) # Not in database, used for raffles creation
-    unit_price: int = Field(..., gt=0)
-
-class RaffleSetDelete(BaseModel):
-    id: int
-
-class RaffleSetOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int = Field(..., ge=1),
-    name: str
-    init: int
-    final: int
-    unit_price: int
+    quantity: int = Field(..., ge=1, description="Number of raffles to create in this set")
+    unit_price: int = Field(..., ge=1)
 
 class RaffleSetUpdate(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int = Field(..., ge=1),
+    """Schema para actualizar un set de rifas existente"""
+    id: int = Field(..., ge=1)
     name: Optional[str] = Field(None, max_length=60)
-    type: Optional[Literal["online", "physical"]] = Field(None)
-    unit_price: Optional[int] = Field(None, gt=0)
+    type: Optional[Literal["online", "physical"]] = None
+    unit_price: Optional[int] = Field(None, ge=1)
 
     @model_validator(mode="after")
     def check_valid_fields(self):
-        id, name, type, unit_price = (self.id, self.name, self.type, self.unit_price)
-        if id:
-            if name is None and type is None and unit_price is None:
-                raise ValueError("You must modify/update at least one value.")
-        else:
-            raise ValueError("Set id is required.")
+        if not any([self.name, self.type, self.unit_price]):
+            raise ValueError("You must modify/update at least one value.")
         return self
 
-class RaffleSetPut(BaseModel):
-    """Schema for PUT operations - requires all fields for complete resource replacement"""
-    model_config = ConfigDict(from_attributes=True)
+class RaffleSetResponse(BaseModel):
+    """Schema de respuesta para sets de rifas"""
+    id: int
+    name: str
+    project_id: int
+    user_id: int
+    type: str
+    init: int  # Calculado automáticamente
+    final: int  # Calculado automáticamente
+    unit_price: int
+    created_at: datetime
+    updated_at: Optional[datetime]
 
-    id: int = Field(..., ge=1)
-    name: str = Field(..., max_length=60)
-    type: Literal["online", "physical"]
-    unit_price: int = Field(..., gt=0)
+    class Config:
+        from_attributes = True

@@ -1,35 +1,40 @@
+from datetime import datetime
 from pydantic import BaseModel, Field, model_validator, EmailStr
 from typing import Optional
 
 class BuyerCreate(BaseModel):
-    name: str = Field(..., max_length=60)
-    phone: str = Field(..., max_length=20, pattern=r'^\+?\s?\d[\d\s]{5,17}$')
-    email: Optional[EmailStr] = Field(max_length=64)
-
-class BuyerDelete(BaseModel):
-    id: int = Field(..., ge=1)
-    name: Optional[str] = None
-    phone: Optional[str] = Field(None, max_length=20, pattern=r'^\+?\s?\d[\d\s]{5,17}$')
-
-    @model_validator(mode="after")
-    def check_valid_fields(self):
-        id, name, phone = (self.id, self.name, self.phone)
-        if id is None and (not name or not phone):
-            raise ValueError("You must send 'id' or the 'name' and 'phone' pair.")
-        return self
+    """Schema para crear un nuevo comprador"""
+    name: str = Field(..., max_length=100)
+    phone: str = Field(..., max_length=20, pattern=r'^\+?\d[\d\s\-\(\)]{8,18}$')  # Phone obligatorio con regex
+    email: Optional[EmailStr] = Field(None, max_length=100)  # Email opcional pero validado
 
 class BuyerUpdate(BaseModel):
+    """Schema para actualizar un comprador existente"""
     id: int = Field(..., ge=1)
-    name: Optional[str] = Field(None, max_length=60)
-    phone: Optional[str] = Field(None, max_length=20, pattern=r'^\+?\s?\d[\d\s]{5,17}$')
-    email: Optional[EmailStr] = Field(None, max_length=64)
+    name: Optional[str] = Field(None, max_length=100)
+    phone: Optional[str] = Field(None, max_length=20, pattern=r'^\+?\d[\d\s\-\(\)]{8,18}$')
+    email: Optional[EmailStr] = Field(None, max_length=100)
 
     @model_validator(mode="after")
     def check_valid_fields(self):
-        id, name, phone, email = (self.id, self.name, self.phone, self.email)
-        if id:
-            if name is None and phone is None and email is None:
-                raise ValueError("You must modify/update at least one value.")
-        else:
-            raise ValueError("Buyer id is required.")
+        if not any([self.name, self.phone, self.email]):
+            raise ValueError("You must modify/update at least one value.")
         return self
+
+class BuyerDeleteByNamePhone(BaseModel):
+    """Schema para eliminar comprador por nombre-teléfono"""
+    name: str = Field(..., max_length=100)
+    phone: str = Field(..., max_length=20, pattern=r'^\+?\d[\d\s\-\(\)]{8,18}$')
+
+class BuyerResponse(BaseModel):
+    """Schema de respuesta para compradores"""
+    id: int
+    name: str
+    phone: str
+    email: Optional[str]
+    user_id: int
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
