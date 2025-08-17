@@ -1,18 +1,20 @@
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import Integer, String, Boolean, DateTime, text
-from database.connection import Base
-from datetime import datetime
-
+from sqlalchemy import Column, Integer, String, DateTime, Boolean
+from database.connection import Base  # Importar Base central
+from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 
 class User(Base):
-    __tablename__ = 'users'
+    __tablename__ = "users"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    username: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
-    email: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
-    password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    creation_date: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP"), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=text("CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"))
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    projects = relationship("Project", back_populates="user")
+    # Relaciones con overlaps para evitar warnings de SQLAlchemy
+    projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
+    raffle_sets = relationship("RaffleSet", back_populates="user", cascade="all, delete-orphan", overlaps="projects")
+    raffles = relationship("Raffle", back_populates="user", cascade="all, delete-orphan", overlaps="projects,raffle_sets")
+    buyers = relationship("Buyer", back_populates="user", cascade="all, delete-orphan")
