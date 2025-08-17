@@ -95,10 +95,36 @@ def create_tables_sql():
         logger.error(f"Error creating tables with SQL file: {e}")
         return False
 
+def create_database_if_not_exists():
+    """Create the database if it doesn't exist"""
+    if settings.DATABASE_URL or settings.MYSQL_URL:
+        # Railway environment - database should already exist
+        logger.info("Using external database service, skipping database creation")
+        return True
+
+    try:
+        # Connect to MySQL server without specifying database
+        sys_engine = create_engine(f"mysql+pymysql://{settings.MARIADB_USERNAME}:{settings.MARIADB_PASSWORD}@{settings.MARIADB_SERVER}:{settings.MARIADB_PORT}")
+
+        with sys_engine.connect() as conn:
+            # Create database if it doesn't exist
+            conn.execute(text(f"CREATE DATABASE IF NOT EXISTS {settings.MARIADB_DATABASE}"))
+            conn.commit()
+            logger.info(f"Database '{settings.MARIADB_DATABASE}' created or already exists")
+            return True
+
+    except Exception as e:
+        logger.error(f"Error creating database: {e}")
+        return False
+
 def create_database():
     """Create database and tables if they don't exist"""
     try:
-        # Test connection first
+        # First, ensure the database exists
+        if not create_database_if_not_exists():
+            raise Exception("Failed to create database")
+
+        # Test connection to the database
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
             logger.info("Database connection successful")
@@ -126,6 +152,16 @@ def create_database():
         raise Exception("Failed to create tables with both SQLAlchemy and SQL file methods")
 
     except OperationalError as e:
+        if "Unknown database" in str(e):
+            logger.error(f"Database {settings.MARIADB_DATABASE} does not exist and could not be created")
+            logger.info("Attempting to create database...")
+            if create_database_if_not_exists():
+                logger.info("Database created, retrying table creation...")
+                # Retry after database creation
+                return create_database()
+            else:
+                raise Exception("Failed to create database")
+
         logger.error(f"Could not connect to database: {e}")
 
         # Si estamos en desarrollo local y hay problemas de acceso, intentar setup_mysql
