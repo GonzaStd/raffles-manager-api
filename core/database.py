@@ -19,7 +19,7 @@ def setup_mysql():
             sys.exit(1)
 
     check_user_cmd = (f"SELECT COUNT(*) FROM mysql.user WHERE user='{settings.MARIADB_USERNAME}' "
-                      f"AND host='{settings.MARIADB_SERVER}';")
+                      f"AND host='localhost';")  # ✅ Corregido: solo 'localhost', sin puerto
     result = subprocess.run([
         'sudo', 'mysql', '-u', 'root', '-e', check_user_cmd
     ], check=True, capture_output=True, text=True)
@@ -28,10 +28,10 @@ def setup_mysql():
 
     if not user_exists:
         create_user_commands = [
-            f"CREATE USER '{settings.MARIADB_USERNAME}'@'{settings.MARIADB_SERVER}:{settings.MARIADB_PORT}'"
+            f"CREATE USER '{settings.MARIADB_USERNAME}'@'localhost'"  # ✅ Corregido: sin puerto
             f" IDENTIFIED BY '{settings.MARIADB_PASSWORD}';",
             "GRANT ALL PRIVILEGES ON *.* TO "
-            f"'{settings.MARIADB_USERNAME}'@'{settings.MARIADB_SERVER}:{settings.MARIADB_PORT}';",
+            f"'{settings.MARIADB_USERNAME}'@'{settings.MARIADB_SERVER}';",
             "FLUSH PRIVILEGES;"
         ]
 
@@ -44,4 +44,5 @@ def setup_mysql():
                 print(f"There was a problem creating \"{settings.MARIADB_USERNAME}\""
                       f" user on mysql:\n{e}\n\nCommands used:\n"
                       f"{'; '.join(create_user_commands)}")
+                return False
     return True

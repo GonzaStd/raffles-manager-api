@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, Optional
 
 from pydantic import (
     AnyUrl,
@@ -9,12 +9,23 @@ from pydantic import (
 )
 
 
-def parse_cors(v: Any) -> list[str] | str:
-    if isinstance(v, str) and not v.startswith("["):
-        return [i.strip() for i in v.split(",")]
-    elif isinstance(v, list | str):
+def parse_cors(v: Any) -> list[str]:
+    if v is None or v == "":
+        return []
+    if isinstance(v, str):
+        if v.startswith("[") and v.endswith("]"):
+            # Try to parse as JSON list
+            try:
+                import json
+                return json.loads(v)
+            except:
+                return []
+        else:
+            # Parse as comma-separated string
+            return [i.strip() for i in v.split(",") if i.strip()]
+    elif isinstance(v, list):
         return v
-    raise ValueError(v)
+    return []
 
 
 class Settings(BaseSettings):
@@ -22,11 +33,11 @@ class Settings(BaseSettings):
         env_file='.env',
         env_file_encoding='utf-8',
         extra="ignore",
-        env_ignore_empty = True,
+        env_ignore_empty=True,
     )
     DOMAIN: str = 'localhost'
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
-    JWT_SECRET_KEY: str
+    JWT_SECRET_KEY: str = "your-secret-key-change-in-production"
 
     @computed_field
     @property
@@ -36,37 +47,48 @@ class Settings(BaseSettings):
             return f"http://{self.DOMAIN}"
         return f"https://{self.DOMAIN}"
 
-    BACKEND_CORS_ORIGINS: list[str] = Field(default_factory=list)
+    # Simple string field that we'll process manually to avoid Pydantic auto-parsing
+    backend_cors_origins_raw: str = Field(default="", alias="BACKEND_CORS_ORIGINS")
 
-    # Local development variables (from .env)
+    @computed_field
+    @property
+    def BACKEND_CORS_ORIGINS(self) -> list[str]:
+        return parse_cors(self.backend_cors_origins_raw)
+
+    # Railway MySQL variables
+    DATABASE_URL: Optional[str] = None
+    MYSQL_URL: Optional[str] = None
+    MYSQLUSER: Optional[str] = None
+    MYSQLPASSWORD: Optional[str] = None
+    MYSQLHOST: Optional[str] = None
+    MYSQLPORT: int = 3306
+    MYSQLDATABASE: Optional[str] = None
+
+    # Local MariaDB variables
     MARIADB_USERNAME: str = ""
     MARIADB_PASSWORD: str = ""
     MARIADB_SERVER: str = ""
     MARIADB_PORT: int = 3306
     MARIADB_DATABASE: str = ""
 
-    # Railway production variables - use the full DATABASE_URL that Railway provides
-    DATABASE_URL: str = ""  # Railway's complete database URL
-    MYSQL_URL: str = ""     # Alternative Railway variable name
-
     @computed_field
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         # First priority: Use DATABASE_URL if available (Railway standard)
         if self.DATABASE_URL:
-            # Convert mysql:// to mysql+pymysql://
             url = self.DATABASE_URL
             if url.startswith("mysql://"):
                 url = url.replace("mysql://", "mysql+pymysql://", 1)
             return url
-
         # Second priority: Use MYSQL_URL if available
         elif self.MYSQL_URL:
             url = self.MYSQL_URL
             if url.startswith("mysql://"):
                 url = url.replace("mysql://", "mysql+pymysql://", 1)
             return url
-
+        # Third priority: Use Railway variables if available
+        elif self.MYSQLUSER and self.MYSQLHOST and self.MYSQLDATABASE:
+            return f"mysql+pymysql://{self.MYSQLUSER}:{self.MYSQLPASSWORD}@{self.MYSQLHOST}:{self.MYSQLPORT}/{self.MYSQLDATABASE}"
         # Fallback: Local development with .env variables
         else:
             return f"mysql+pymysql://{self.MARIADB_USERNAME}:{self.MARIADB_PASSWORD}@{self.MARIADB_SERVER}:{self.MARIADB_PORT}/{self.MARIADB_DATABASE}"
