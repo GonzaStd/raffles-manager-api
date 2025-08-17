@@ -9,7 +9,7 @@ class ProjectCreate(BaseModel):
 
 class ProjectUpdate(BaseModel):
     """Schema para actualizar un proyecto existente"""
-    id: int = Field(..., ge=1)
+    project_number: int = Field(..., ge=1)  # Cambié de id a project_number
     name: Optional[str] = Field(None, max_length=100)
     description: Optional[str] = Field(None, max_length=500)
 
@@ -21,10 +21,10 @@ class ProjectUpdate(BaseModel):
 
 class ProjectResponse(BaseModel):
     """Schema de respuesta para proyectos"""
-    id: int
+    user_id: int
+    project_number: int  # Cambié de id a project_number
     name: str
     description: Optional[str]
-    user_id: int
     created_at: datetime
     updated_at: Optional[datetime]
 

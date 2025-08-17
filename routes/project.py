@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from auth.services.auth_service import get_current_active_user
-from models import RaffleSet, Raffle
 from models.users import User
 from models.project import Project
 from schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
-from routes import get_record, get_records, create_record, update_record, delete_record
+from routes import (get_records, create_record, update_record, delete_record,
+                   get_record_by_composite_key, get_next_project_number)
 from typing import List
 
 router = APIRouter()
@@ -14,27 +14,30 @@ router = APIRouter()
 
 @router.post("/project", response_model=ProjectResponse)
 def create_project(
-    project: ProjectCreate,  # Cambié ProjectBase por ProjectCreate
+    project: ProjectCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Crear un nuevo proyecto."""
+    """Crear un nuevo proyecto con auto-increment per user."""
+    project_number = get_next_project_number(db, current_user.id)
+
     new_project = Project(
+        user_id=current_user.id,
+        project_number=project_number,
         name=project.name,
-        description=project.description,
-        user_id=current_user.id
+        description=project.description
     )
     return create_record(db, new_project)
 
 
-@router.get("/project/{project_id}", response_model=ProjectResponse)
+@router.get("/project/{project_number}", response_model=ProjectResponse)
 def get_project(
-    project_id: int,
+    project_number: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Obtener un proyecto específico."""
-    return get_record(db, Project, project_id, current_user)
+    """Obtener un proyecto específico por su número."""
+    return get_record_by_composite_key(db, Project, current_user.id, project_number=project_number)
 
 
 @router.get("/projects", response_model=List[ProjectResponse])
@@ -58,22 +61,12 @@ def update_project(
     return update_record(db, Project, project_update, current_user)
 
 
-@router.delete("/project/{project_id}")
+@router.delete("/project/{project_number}")
 def delete_project(
-    project_id: int,
+    project_number: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-
-    # Delete rafflesets and raffles associated with the project
-    rafflesets = db.query(RaffleSet).filter(RaffleSet.project_id == project_id).all()
-    sets_ids = [raffleset.id for raffleset in rafflesets]
-
-    for set_id in sets_ids:
-        db.query(Raffle).filter(Raffle.set_id == set_id).delete()
-
-    for raffleset in rafflesets:
-        db.delete(raffleset)
-
-    project = get_record(db, Project, project_id, current_user)
+    """Eliminar un proyecto y todos sus sets/rifas asociados."""
+    project = get_record_by_composite_key(db, Project, current_user.id, project_number=project_number)
     return delete_record(db, project, current_user)

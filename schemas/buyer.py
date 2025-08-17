@@ -10,7 +10,7 @@ class BuyerCreate(BaseModel):
 
 class BuyerUpdate(BaseModel):
     """Schema para actualizar un comprador existente"""
-    id: int = Field(..., ge=1)
+    buyer_number: int = Field(..., ge=1)  # Cambié de id a buyer_number
     name: Optional[str] = Field(None, max_length=100)
     phone: Optional[str] = Field(None, max_length=20, pattern=r'^\+?\d[\d\s\-\(\)]{8,18}$')
     email: Optional[EmailStr] = Field(None, max_length=100)
@@ -28,11 +28,11 @@ class BuyerDeleteByNamePhone(BaseModel):
 
 class BuyerResponse(BaseModel):
     """Schema de respuesta para compradores"""
-    id: int
+    user_id: int
+    buyer_number: int  # Cambié de id a buyer_number
     name: str
     phone: str
     email: Optional[str]
-    user_id: int
     created_at: datetime
     updated_at: Optional[datetime]
 

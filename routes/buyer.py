@@ -5,7 +5,8 @@ from auth.services.auth_service import get_current_active_user
 from models.users import User
 from models.buyer import Buyer
 from schemas.buyer import BuyerCreate, BuyerUpdate, BuyerResponse, BuyerDeleteByNamePhone
-from routes import get_record, get_records, create_record, update_record, delete_record, get_buyer_by_name_phone
+from routes import (get_records, create_record, update_record, delete_record,
+                   get_buyer_by_name_phone, get_record_by_composite_key, get_next_buyer_number)
 from typing import List
 
 router = APIRouter()
@@ -16,22 +17,26 @@ def create_buyer(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Crear un nuevo comprador."""
+    """Crear un nuevo comprador con auto-increment per user."""
+    buyer_number = get_next_buyer_number(db, current_user.id)
+
     new_buyer = Buyer(
+        user_id=current_user.id,
+        buyer_number=buyer_number,
         name=buyer.name,
         phone=buyer.phone,
-        email=str(buyer.email),
-        user_id=current_user.id
+        email=str(buyer.email) if buyer.email else None
     )
     return create_record(db, new_buyer)
 
-@router.get("/buyer/{buyer_id}", response_model=BuyerResponse)
+@router.get("/buyer/{buyer_number}", response_model=BuyerResponse)
 def get_buyer(
-    buyer_id: int,
+    buyer_number: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    return get_record(db, Buyer, buyer_id, current_user)
+    """Obtener un comprador específico por su número."""
+    return get_record_by_composite_key(db, Buyer, current_user.id, buyer_number=buyer_number)
 
 @router.get("/buyers", response_model=List[BuyerResponse])
 def get_buyers(
@@ -52,14 +57,14 @@ def update_buyer(
     """Actualizar un comprador existente."""
     return update_record(db, Buyer, buyer_update, current_user)
 
-@router.delete("/buyer/{buyer_id}")
-def delete_buyer_by_id(
-    buyer_id: int,
+@router.delete("/buyer/{buyer_number}")
+def delete_buyer_by_number(
+    buyer_number: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    """Eliminar un comprador por ID."""
-    buyer = get_record(db, Buyer, buyer_id, current_user)
+    """Eliminar un comprador por número."""
+    buyer = get_record_by_composite_key(db, Buyer, current_user.id, buyer_number=buyer_number)
     return delete_record(db, buyer, current_user)
 
 @router.delete("/buyer/by-name-phone")
