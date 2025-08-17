@@ -1,84 +1,73 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database.connection import get_db
-from models.buyer import Buyer
-from models.users import User
-from routes import get_record, get_records, create_record, update_record, delete_record
-from schemas.buyer import BuyerCreate, BuyerDelete, BuyerUpdate
 from auth.services.auth_service import get_current_active_user
+from models.users import User
+from models.buyer import Buyer
+from schemas.buyer import BuyerCreate, BuyerUpdate, BuyerResponse, BuyerDeleteByNamePhone
+from routes import get_record, get_records, create_record, update_record, delete_record, get_buyer_by_name_phone
+from typing import List
 
 router = APIRouter()
 
-
-@router.post("/buyer")
+@router.post("/buyer", response_model=BuyerResponse)
 def create_buyer(
     buyer: BuyerCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    # Los buyers no necesitan user_id si son compartidos entre usuarios
-    # Si quieres que cada usuario tenga sus propios buyers, agrega user_id al modelo Buyer
+    """Crear un nuevo comprador."""
     new_buyer = Buyer(
         name=buyer.name,
         phone=buyer.phone,
-        email=str(buyer.email)
+        email=str(buyer.email),
+        user_id=current_user.id
     )
     return create_record(db, new_buyer)
 
-
-@router.get("/buyer")
+@router.get("/buyer/{buyer_id}", response_model=BuyerResponse)
 def get_buyer(
-    id: int = Query(..., ge=1),
+    buyer_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    # Los buyers pueden ser accedidos por cualquier usuario autenticado
-    # Si quieres restricción por usuario, necesitas agregar user_id al modelo Buyer
-    return get_record(db, Buyer, id, "Buyer")
+    return get_record(db, Buyer, buyer_id, current_user)
 
-
-@router.get("/buyers")
+@router.get("/buyers", response_model=List[BuyerResponse])
 def get_buyers(
     limit: int = 0,
     offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    # Todos los buyers disponibles para cualquier usuario autenticado
-    query = db.query(Buyer)
-    if offset > 0:
-        query = query.offset(offset)
-    if limit > 0:
-        query = query.limit(limit)
-    return query.all()
+    """Obtener todos los compradores del usuario."""
+    return get_records(db, Buyer, current_user, limit, offset)
 
-
-@router.patch("/buyer")
+@router.put("/buyer", response_model=BuyerResponse)
 def update_buyer(
-    buyer: BuyerUpdate,
+    buyer_update: BuyerUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    # Cualquier usuario autenticado puede actualizar buyers
-    return update_record(db, Buyer, buyer)
+    """Actualizar un comprador existente."""
+    return update_record(db, Buyer, buyer_update, current_user)
 
-
-@router.delete("/buyer")
-def delete_buyer(
-    buyer: BuyerDelete,
+@router.delete("/buyer/{buyer_id}")
+def delete_buyer_by_id(
+    buyer_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    # Get the buyer record first
-    if buyer.id:
-        buyer_record = get_record(db, Buyer, buyer.id, "Buyer")
-    else:
-        # Find by name and phone if id not provided
-        buyer_record = db.query(Buyer).filter(
-            Buyer.name == buyer.name,
-            Buyer.phone == buyer.phone
-        ).first()
-        if not buyer_record:
-            raise HTTPException(status_code=404, detail="Buyer not found")
+    """Eliminar un comprador por ID."""
+    buyer = get_record(db, Buyer, buyer_id, current_user)
+    return delete_record(db, buyer, current_user)
 
-    return delete_record(db, buyer_record)
+@router.delete("/buyer/by-name-phone")
+def delete_buyer_by_name_phone(
+    buyer_data: BuyerDeleteByNamePhone,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Eliminar un comprador por nombre-teléfono único."""
+    buyer = get_buyer_by_name_phone(db, buyer_data.name, buyer_data.phone, current_user)
+    return delete_record(db, buyer, current_user)

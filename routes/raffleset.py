@@ -1,147 +1,131 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database.connection import get_db
-from models import RaffleSet, Raffle, Project
-from models.users import User
-from routes import get_record, get_records, create_record, update_record, delete_record
-from schemas.raffleset import RaffleSetCreate, RaffleSetUpdate, RaffleSetDelete, RaffleSetPut
 from auth.services.auth_service import get_current_active_user
+from models.users import User
+from models.raffleset import RaffleSet
+from models.project import Project
+from models.raffle import Raffle
+from schemas.raffleset import RaffleSetCreate, RaffleSetUpdate, RaffleSetResponse
+from routes import get_record, get_records, create_record, update_record, delete_record
+from typing import List
 
 router = APIRouter()
 
 
-@router.post("/raffleset")
+@router.post("/raffleset", response_model=RaffleSetResponse)
 def create_raffleset(
     raffleset: RaffleSetCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    # Verificar que el proyecto pertenece al usuario
-    project = get_record(db, Project, raffleset.project_id, "Project")
-    if project.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied: not your project")
+    """Crear un nuevo set de rifas con numeración automática y creación de rifas individuales."""
+    # Verificar que el proyecto pertenece al usuario usando función optimizada
+    get_record(db, Project, raffleset.project_id, current_user)
 
-    # Find the last raffle number for this specific project (across all sets)
+    # Encontrar el último número de rifa para este PROYECTO específico del usuario
+    # Los números de rifas son continuos a través de todos los sets dentro de un proyecto
     last_number = (
         db.query(Raffle.number)
-        .join(RaffleSet)
-        .filter(RaffleSet.project_id == raffleset.project_id)
+        .join(RaffleSet, Raffle.set_id == RaffleSet.id)
+        .filter(
+            RaffleSet.project_id == raffleset.project_id,
+            Raffle.user_id == current_user.id
+        )
         .order_by(Raffle.number.desc())
         .limit(1)
         .scalar()
     )
 
-    start = (last_number or 0) + 1
-    end = start + raffleset.requested_count - 1
+    # Calcular automáticamente init y final basándose en la última rifa del proyecto
+    if last_number is None:
+        # Si no hay rifas previas en este proyecto, empezar desde 1
+        init_number = 1
+    else:
+        # Continuar desde el siguiente número después de la última rifa
+        init_number = last_number + 1
 
+    final_number = init_number + raffleset.quantity - 1
+
+    # Crear nuevo RaffleSet con los números calculados automáticamente
     new_raffleset = RaffleSet(
-        project_id=raffleset.project_id,
         name=raffleset.name,
+        project_id=raffleset.project_id,
+        user_id=current_user.id,
         type=raffleset.type,
-        unit_price=raffleset.unit_price,
-        init=start,
-        final=end
+        init=init_number,
+        final=final_number,
+        unit_price=raffleset.unit_price
     )
 
-    create_record(db, new_raffleset)
+    # Crear el set primero
+    created_set = create_record(db, new_raffleset)
 
-    raffles = [
-        Raffle(
-            number=n,
-            set_id=new_raffleset.id,
+    # Crear automáticamente todas las rifas individuales del rango
+    raffles_to_create = []
+    for number in range(init_number, final_number + 1):
+        new_raffle = Raffle(
+            number=number,
+            set_id=created_set.id,
+            user_id=current_user.id,
             state="available"
         )
-        for n in range(start, end + 1)
-    ]
-    db.bulk_save_objects(raffles)
-    db.commit()
+        raffles_to_create.append(new_raffle)
 
-    return {
-        "message": "RaffleSet and Raffles created",
-        "raffleset": {
-            "id": new_raffleset.id,
-            "name": new_raffleset.name,
-            "type": new_raffleset.type,
-            "init": new_raffleset.init,
-            "final": new_raffleset.final,
-            "unit_price": new_raffleset.unit_price,
-            "project_id": new_raffleset.project_id
-        },
-        "range": f"{start}-{end}"
-    }
+    # Insertar todas las rifas en batch para eficiencia
+    try:
+        db.add_all(raffles_to_create)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        # Si fallan las rifas, eliminar el set creado para mantener consistencia
+        db.delete(created_set)
+        db.commit()
+        raise HTTPException(
+            status_code=400,
+            detail=f"Error creating raffles: {str(e)}"
+        )
+
+    return created_set
 
 
-@router.get("/raffleset/{id}")
+@router.get("/raffleset/{raffleset_id}", response_model=RaffleSetResponse)
 def get_raffleset(
-    id: int,
+    raffleset_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    raffleset = get_record(db, RaffleSet, id, "Raffle Set")
-    # Verificar que el raffleset pertenece a un proyecto del usuario
-    project = get_record(db, Project, raffleset.project_id, "Project")
-    if project.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied: not your project")
-    return raffleset
+    """Obtener un set de rifas específico."""
+    return get_record(db, RaffleSet, raffleset_id, current_user)
 
 
-@router.get("/rafflesets")
+@router.get("/rafflesets", response_model=List[RaffleSetResponse])
 def get_rafflesets(
     limit: int = 0,
     offset: int = 0,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    return get_records(db, RaffleSet, limit, offset)
+    """Obtener todos los sets de rifas del usuario."""
+    return get_records(db, RaffleSet, current_user, limit, offset)
 
 
-@router.patch("/raffleset")
+@router.put("/raffleset", response_model=RaffleSetResponse)
 def update_raffleset(
-    updates: RaffleSetUpdate,
+    raffleset_update: RaffleSetUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    raffleset = get_record(db, RaffleSet, updates.id, "Raffle Set")
-    project = get_record(db, Project, raffleset.project_id, "Project")
-    if project.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied: not your project")
-    return update_record(db, RaffleSet, updates)
+    """Actualizar un set de rifas existente."""
+    return update_record(db, RaffleSet, raffleset_update, current_user)
 
 
-@router.put("/raffleset")
-def replace_raffleset(
-    raffleset_data: RaffleSetPut,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    raffleset = get_record(db, RaffleSet, raffleset_data.id, "Raffle Set")
-    project = get_record(db, Project, raffleset.project_id, "Project")
-    if project.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied: not your project")
-
-    raffleset.name = raffleset_data.name
-    raffleset.type = raffleset_data.type
-    raffleset.unit_price = raffleset_data.unit_price
-
-    db.commit()
-    db.refresh(raffleset)
-    return raffleset
-
-
-@router.delete("/raffleset")
+@router.delete("/raffleset/{raffleset_id}")
 def delete_raffleset(
-    raffleset_data: RaffleSetDelete,
+    raffleset_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    raffleset = get_record(db, RaffleSet, raffleset_data.id, "Raffle Set")
-    project = get_record(db, Project, raffleset.project_id, "Project")
-    if project.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied: not your project")
-
-    # Delete associated raffles first
-    raffles = db.query(Raffle).filter(Raffle.set_id == raffleset_data.id).all()
-    for raffle in raffles:
-        db.delete(raffle)
-
-    return delete_record(db, raffleset)
+    """Eliminar un set de rifas y todas sus rifas asociadas."""
+    raffleset = get_record(db, RaffleSet, raffleset_id, current_user)
+    return delete_record(db, raffleset, current_user)
