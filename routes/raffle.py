@@ -1,79 +1,106 @@
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Path, HTTPException
 from sqlalchemy.orm import Session
 from database.connection import get_db
-from models.raffle import Raffle
-from models.users import User
-from models import RaffleSet, Project
-from routes import get_record, get_records, update_record
-from schemas.raffle import RaffleUpdate, RafflePayment
 from auth.services.auth_service import get_current_active_user
+from models import Project
+from models.users import User
+from models.raffle import Raffle
+from models.raffleset import RaffleSet
+from models.buyer import Buyer
+from schemas.raffle import RaffleUpdate, RaffleResponse, RaffleSell, RaffleFilters
+from routes import get_record, update_record, get_records
+from typing import List
 
 router = APIRouter()
 
-
-@router.get("/raffle")
+@router.get("/raffle/{raffle_number}", response_model=RaffleResponse)
 def get_raffle(
-    number: int = Query(..., ge=1),
+    raffle_number: int = Path(..., ge=1),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    raffle = get_record(db, Raffle, number, "Raffle", id_field="number")
-    # Verificar que la rifa pertenece a un proyecto del usuario
-    raffleset = get_record(db, RaffleSet, raffle.set_id, "Raffle Set")
-    project = get_record(db, Project, raffleset.project_id, "Project")
-    if project.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied: not your project")
-    return raffle
+    """Obtener una rifa específica por su número."""
+    return get_record(db, Raffle, raffle_number, current_user)  # Correcto: pasar current_user
 
-
-@router.get("/raffles")
-def get_raffles(
-    limit: int = 0,
-    offset: int = 0,
+@router.post("/raffles", response_model=List[RaffleResponse])
+def get_raffles_filtered(
+    filters: RaffleFilters,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    return get_records(db, Raffle, limit, offset)
+    """
+    Obtener rifas con filtros específicos para facilitar sorteos.
+    Las rifas están organizadas por proyecto, por lo que project_id es obligatorio.
+    """
 
+    # Validar que project_id sea obligatorio
+    if not filters.project_id:
+        raise HTTPException(
+            status_code=400,
+            detail="project_id is required for filtering raffles"
+        )
 
-@router.post("/raffle/pay")
-def pay_raffle(
-    payment: RafflePayment,
+    # Verificar que el proyecto pertenece al usuario
+    get_record(db, Project, filters.project_id, current_user)  # Correcto: pasar current_user
+
+    # Preparar filtros directos del modelo Raffle
+    raffle_filters = {}
+    if filters.payment_method:
+        raffle_filters['payment_method'] = filters.payment_method
+    if filters.state:
+        raffle_filters['state'] = filters.state
+    if filters.set_id:
+        raffle_filters['set_id'] = filters.set_id
+
+    # Configurar JOIN con raffle_sets
+    join_config = [{
+        'model': RaffleSet,
+        'condition': Raffle.set_id == RaffleSet.id,
+        'filter': {'project_id': filters.project_id}
+    }]
+
+    # Ejecutar consulta optimizada
+    return get_records(
+        db=db,
+        Model=Raffle,
+        current_user=current_user,  # Correcto: pasar current_user
+        limit=filters.limit,
+        offset=filters.offset,
+        filters=raffle_filters,
+        joins=join_config
+    )
+
+@router.put("/raffle", response_model=RaffleResponse)
+def update_raffle(
+    raffle_update: RaffleUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_user)
 ):
-    raffle_record = get_record(db, Raffle, payment.number, "Raffle", id_field="number")
+    """Actualizar una rifa existente."""
+    return update_record(db, Raffle, raffle_update, current_user)  # Correcto: pasar current_user
 
-    # Verificar que la rifa pertenece a un proyecto del usuario
-    raffleset = get_record(db, RaffleSet, raffle_record.set_id, "Raffle Set")
-    project = get_record(db, Project, raffleset.project_id, "Project")
-    if project.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied: not your project")
+@router.post("/raffle/{raffle_number}/sell", response_model=RaffleResponse)
+def sell_raffle(
+    raffle_number: int,
+    sale_data: RaffleSell,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_user)
+):
+    """Vender una rifa asignándola a un comprador."""
+    # Verificar que la rifa pertenece al usuario
+    raffle = get_record(db, Raffle, raffle_number, current_user)  # Correcto: pasar current_user
 
-    if raffle_record.state not in ["available", "reserved"]:
+    # Verificar que el comprador pertenece al usuario
+    get_record(db, Buyer, sale_data.buyer_id, current_user)  # Correcto: pasar current_user
+
+    if raffle.state not in ["available", "reserved"]:
         raise HTTPException(status_code=400, detail="Raffle is not available for payment")
 
-    raffle_record.buyer_id = payment.buyer_id
-    raffle_record.payment_method = payment.payment_method
-    raffle_record.state = payment.state
-    raffle_record.sell_date = datetime.now()
+    # Actualizar la rifa con los datos de venta
+    raffle.buyer_id = sale_data.buyer_id
+    raffle.payment_method = sale_data.payment_method
+    raffle.state = "sold"
 
     db.commit()
-    db.refresh(raffle_record)
-
-    return raffle_record
-
-
-@router.patch("/raffle")
-def update_raffle(
-    updates: RaffleUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
-):
-    raffle = get_record(db, Raffle, updates.number, "Raffle", id_field="number")
-    raffleset = get_record(db, RaffleSet, raffle.set_id, "Raffle Set")
-    project = get_record(db, Project, raffleset.project_id, "Project")
-    if project.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Access denied: not your project")
-    return update_record(db, Raffle, updates, id_field="number")
+    db.refresh(raffle)
+    return raffle
