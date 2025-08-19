@@ -1,43 +1,24 @@
-from database.create import create_database_if_not_exists
+from database.create import create_database_if_not_exists, create_tables_sql, check_tables_exist
 from database.connection import engine, SessionLocal, Base
 
 # Initialize database only when explicitly called
+# Only use SQL file for table creation
+
 def initialize_database():
     """Initialize database and tables - call this explicitly when needed"""
     try:
-        # Import models here to avoid circular imports
-        from models.users import User
-        from models.project import Project
-        from models.buyer import Buyer
-        from models.raffleset import RaffleSet
-        from models.raffle import Raffle
-
-        # First ensure database exists
+        # First ensure database exists (Railway: just prints structure)
         if create_database_if_not_exists():
-            # Then create tables using SQLAlchemy
-            Base.metadata.create_all(bind=engine)
-            print("Database initialized successfully")
+            # Only create tables if missing
+            if not check_tables_exist():
+                create_tables_sql()
+                print("Database tables created successfully using SQL file")
+            else:
+                print("Database and tables already exist. Skipping creation.")
             return True
     except Exception as e:
         print(f"Warning: Could not create database/tables: {e}")
         return False
 
-# Try to initialize during import, but don't fail if database doesn't exist
-try:
-    # Import models here to avoid circular imports
-    from models.users import User
-    from models.project import Project
-    from models.buyer import Buyer
-    from models.raffleset import RaffleSet
-    from models.raffle import Raffle
-
-    # First ensure the database exists
-    if create_database_if_not_exists():
-        # Then create tables using SQLAlchemy
-        Base.metadata.create_all(bind=engine)
-        print("Database initialized successfully")
-    else:
-        print("Warning: Could not create database")
-except Exception as e:
-    print(f"Warning: Could not create database/tables: {e}")
-    # Continue anyway - database will be created when first accessed
+# Remove any automatic SQLAlchemy table creation
+# Only use SQL file for table creation

@@ -1,132 +1,113 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Path, HTTPException
 from sqlalchemy.orm import Session
 from database.connection import get_db
-from auth.services.auth_service import get_current_active_user
-from models.users import User
+from models.entity import Entity
 from models.raffleset import RaffleSet
-from models.project import Project
 from models.raffle import Raffle
+from models.project import Project
 from schemas.raffleset import RaffleSetCreate, RaffleSetUpdate, RaffleSetResponse
-from routes import (get_records, create_record, update_record, delete_record,
+from routes import (get_records_filtered, create_record, update_record_by_composite_key, delete_record,
                    get_record_by_composite_key, get_next_set_number, get_next_raffle_number)
 from typing import List
+from auth.services.entity_auth_service import get_current_entity
 
 router = APIRouter()
 
 @router.post("/project/{project_number}/raffleset", response_model=RaffleSetResponse)
-def create_raffleset(
-    project_number: int,
-    raffleset: RaffleSetCreate,
+def create_raffle_set(
+    project_number: int = Path(..., ge=1),
+    raffle_set: RaffleSetCreate = ...,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_entity: Entity = Depends(get_current_entity)
 ):
-    """Crear un nuevo set de rifas con numeración automática y creación de rifas individuales."""
-    # Verificar que el proyecto existe y pertenece al usuario
-    get_record_by_composite_key(db, Project, current_user.id, project_number=project_number)
+    """Create a new raffle set and its associated raffles."""
+    # Verify that the project belongs to the entity
+    get_record_by_composite_key(db, Project, current_entity.id, project_number=project_number)
 
-    # Obtener el siguiente número de set para este proyecto
-    set_number = get_next_set_number(db, current_user.id, project_number)
+    # Get next set number for this project
+    set_number = get_next_set_number(db, current_entity.id, project_number)
 
-    # Encontrar el último número de rifa para este proyecto específico del usuario
-    last_raffle_number = get_next_raffle_number(db, current_user.id, project_number) - 1
+    # Calculate init and final based on existing raffles in this project
+    last_raffle_number = get_next_raffle_number(db, current_entity.id, project_number) - 1
+    init_number = last_raffle_number + 1
+    final_number = init_number + raffle_set.quantity - 1
 
-    # Calcular automáticamente init y final basándose en la última rifa del proyecto
-    init_number = last_raffle_number + 1 if last_raffle_number > 0 else 1
-    final_number = init_number + raffleset.quantity - 1
-
-    # Crear nuevo RaffleSet
-    new_raffleset = RaffleSet(
-        user_id=current_user.id,
+    # Create the raffle set
+    new_raffle_set = RaffleSet(
+        entity_id=current_entity.id,
         project_number=project_number,
         set_number=set_number,
-        name=raffleset.name,
-        type=raffleset.type,
+        name=raffle_set.name,
+        type=raffle_set.type,
         init=init_number,
         final=final_number,
-        unit_price=raffleset.unit_price
+        unit_price=raffle_set.unit_price
     )
 
-    # Crear el set primero
-    created_set = create_record(db, new_raffleset)
+    created_set = create_record(db, new_raffle_set)
 
-    # Crear automáticamente todas las rifas individuales del rango
-    raffles_to_create = []
+    # Create individual raffles for this set
     for raffle_num in range(init_number, final_number + 1):
         new_raffle = Raffle(
-            user_id=current_user.id,
+            entity_id=current_entity.id,
             project_number=project_number,
             raffle_number=raffle_num,
             set_number=set_number,
             state="available"
         )
-        raffles_to_create.append(new_raffle)
+        db.add(new_raffle)
 
-    # Insertar todas las rifas en batch
-    try:
-        db.add_all(raffles_to_create)
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        db.delete(created_set)
-        db.commit()
-        raise HTTPException(status_code=400, detail=f"Error creating raffles: {str(e)}")
-
+    db.commit()
     return created_set
 
 @router.get("/project/{project_number}/raffleset/{set_number}", response_model=RaffleSetResponse)
-def get_raffleset(
-    project_number: int,
-    set_number: int,
+def get_raffle_set(
+    project_number: int = Path(..., ge=1),
+    set_number: int = Path(..., ge=1),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_entity: Entity = Depends(get_current_entity)
 ):
-    """Obtener un set de rifas específico."""
-    return get_record_by_composite_key(db, RaffleSet, current_user.id,
+    """Get a specific raffle set by project and set number."""
+    return get_record_by_composite_key(db, RaffleSet, current_entity.id,
                                       project_number=project_number, set_number=set_number)
 
 @router.get("/project/{project_number}/rafflesets", response_model=List[RaffleSetResponse])
-def get_rafflesets(
-    project_number: int,
+def get_raffle_sets_by_project(
+    project_number: int = Path(..., ge=1),
     limit: int = 0,
     offset: int = 0,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_entity: Entity = Depends(get_current_entity)
 ):
-    """Obtener todos los sets de rifas de un proyecto."""
-    # Verificar que el proyecto existe
-    get_record_by_composite_key(db, Project, current_user.id, project_number=project_number)
+    """Get all raffle sets for a specific project."""
+    # Verify project belongs to entity
+    get_record_by_composite_key(db, Project, current_entity.id, project_number=project_number)
 
-    # Filtrar sets por proyecto
-    query = db.query(RaffleSet).filter(
-        RaffleSet.user_id == current_user.id,
-        RaffleSet.project_number == project_number
-    ).order_by(RaffleSet.set_number)
-
-    if offset > 0:
-        query = query.offset(offset)
-    if limit > 0:
-        query = query.limit(limit)
-
-    return query.all()
+    # Get raffle sets with project filter
+    return get_records_filtered(db, RaffleSet, current_entity.id,
+                               {"project_number": project_number}, limit, offset)
 
 @router.put("/project/{project_number}/raffleset", response_model=RaffleSetResponse)
-def update_raffleset(
-    project_number: int,
-    raffleset_update: RaffleSetUpdate,
+def update_raffle_set(
+    project_number: int = Path(..., ge=1),
+    raffle_set_update: RaffleSetUpdate = ...,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_entity: Entity = Depends(get_current_entity)
 ):
-    """Actualizar un set de rifas existente."""
-    return update_record(db, RaffleSet, raffleset_update, current_user)
+    """Update an existing raffle set."""
+    pk_fields = {'project_number': project_number, 'set_number': raffle_set_update.set_number}
+    updates = {k: v for k, v in raffle_set_update.model_dump(exclude_unset=True).items()
+               if k not in {'project_number', 'set_number'}}
+    return update_record_by_composite_key(db, RaffleSet, current_entity.id, updates, **pk_fields)
 
 @router.delete("/project/{project_number}/raffleset/{set_number}")
-def delete_raffleset(
-    project_number: int,
-    set_number: int,
+def delete_raffle_set(
+    project_number: int = Path(..., ge=1),
+    set_number: int = Path(..., ge=1),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_entity: Entity = Depends(get_current_entity)
 ):
-    """Eliminar un set de rifas y todas sus rifas asociadas."""
-    raffleset = get_record_by_composite_key(db, RaffleSet, current_user.id,
-                                           project_number=project_number, set_number=set_number)
-    return delete_record(db, raffleset, current_user)
+    """Delete a raffle set and all its associated raffles."""
+    raffle_set = get_record_by_composite_key(db, RaffleSet, current_entity.id,
+                                            project_number=project_number, set_number=set_number)
+    return delete_record(db, raffle_set, current_entity.id)

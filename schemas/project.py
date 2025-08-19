@@ -3,13 +3,13 @@ from typing import Optional
 from datetime import datetime
 
 class ProjectCreate(BaseModel):
-    """Schema para crear un nuevo proyecto"""
+    """Schema for creating a new project"""
     name: str = Field(..., max_length=100)
     description: Optional[str] = Field("", max_length=500)
 
 class ProjectUpdate(BaseModel):
-    """Schema para actualizar un proyecto existente"""
-    project_number: int = Field(..., ge=1)  # Cambié de id a project_number
+    """Schema for updating an existing project"""
+    project_number: int = Field(..., ge=1)
     name: Optional[str] = Field(None, max_length=100)
     description: Optional[str] = Field(None, max_length=500)
 
@@ -20,9 +20,9 @@ class ProjectUpdate(BaseModel):
         return self
 
 class ProjectResponse(BaseModel):
-    """Schema de respuesta para proyectos"""
-    user_id: int
-    project_number: int  # Cambié de id a project_number
+    """Schema for project response"""
+    entity_id: int
+    project_number: int
     name: str
     description: Optional[str]
     created_at: datetime

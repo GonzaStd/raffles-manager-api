@@ -4,17 +4,17 @@ from datetime import datetime
 
 
 class RaffleSetCreate(BaseModel):
-    """Schema para crear un nuevo set de rifas"""
+    """Schema for creating a new raffle set"""
     name: str = Field(..., max_length=60)
-    project_number: int = Field(..., ge=1, description="Project number within user's projects")
+    project_number: int = Field(..., ge=1, description="Project number within entity's projects")
     type: Literal["online", "physical"]
     quantity: int = Field(..., ge=1, description="Number of raffles to create in this set")
     unit_price: int = Field(..., ge=1)
 
 class RaffleSetUpdate(BaseModel):
-    """Schema para actualizar un set de rifas existente"""
+    """Schema for updating an existing raffle set"""
     project_number: int = Field(..., ge=1)
-    set_number: int = Field(..., ge=1)  # Cambié de id a set_number
+    set_number: int = Field(..., ge=1)
     name: Optional[str] = Field(None, max_length=60)
     type: Optional[Literal["online", "physical"]] = None
     unit_price: Optional[int] = Field(None, ge=1)
@@ -26,14 +26,14 @@ class RaffleSetUpdate(BaseModel):
         return self
 
 class RaffleSetResponse(BaseModel):
-    """Schema de respuesta para sets de rifas"""
-    user_id: int
+    """Schema for raffle set response"""
+    entity_id: int
     project_number: int
-    set_number: int  # Cambié de id a set_number
+    set_number: int
     name: str
     type: str
-    init: int  # Calculado automáticamente
-    final: int  # Calculado automáticamente
+    init: int  # Automatically calculated
+    final: int  # Automatically calculated
     unit_price: int
     created_at: datetime
     updated_at: Optional[datetime]

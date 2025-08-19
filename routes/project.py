@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from database.connection import get_db
-from auth.services.auth_service import get_current_active_user
-from models.users import User
+from models.entity import Entity
 from models.project import Project
 from schemas.project import ProjectCreate, ProjectUpdate, ProjectResponse
-from routes import (get_records, create_record, update_record, delete_record,
+from routes import (get_records_filtered, create_record, update_record_by_composite_key, delete_record,
                    get_record_by_composite_key, get_next_project_number)
 from typing import List
+from auth.services.entity_auth_service import get_current_entity, get_current_entity_or_manager
 
 router = APIRouter()
 
@@ -16,13 +16,13 @@ router = APIRouter()
 def create_project(
     project: ProjectCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_entity: Entity = Depends(get_current_entity)
 ):
-    """Crear un nuevo proyecto con auto-increment per user."""
-    project_number = get_next_project_number(db, current_user.id)
+    """Create a new project with auto-increment per entity."""
+    project_number = get_next_project_number(db, current_entity.id)
 
     new_project = Project(
-        user_id=current_user.id,
+        entity_id=current_entity.id,
         project_number=project_number,
         name=project.name,
         description=project.description
@@ -34,10 +34,10 @@ def create_project(
 def get_project(
     project_number: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_entity: Entity = Depends(get_current_entity)
 ):
-    """Obtener un proyecto específico por su número."""
-    return get_record_by_composite_key(db, Project, current_user.id, project_number=project_number)
+    """Get a specific project by its number."""
+    return get_record_by_composite_key(db, Project, current_entity.id, project_number=project_number)
 
 
 @router.get("/projects", response_model=List[ProjectResponse])
@@ -45,28 +45,37 @@ def get_projects(
     limit: int = 0,
     offset: int = 0,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_user = Depends(get_current_entity_or_manager)
 ):
-    """Obtener todos los proyectos del usuario."""
-    return get_records(db, Project, current_user, limit, offset)
+    """Get all projects for the current entity or manager's entity."""
+    # Determine user type
+    if isinstance(current_user, tuple):
+        user, user_type = current_user
+    else:
+        user = current_user
+        user_type = "entity"
+    entity_id = user.entity_id if user_type == "manager" else user.id
+    return get_records_filtered(db, Project, entity_id, None, limit, offset)
 
 
 @router.put("/project", response_model=ProjectResponse)
 def update_project(
     project_update: ProjectUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_entity: Entity = Depends(get_current_entity)
 ):
-    """Actualizar un proyecto existente."""
-    return update_record(db, Project, project_update, current_user)
+    """Update an existing project."""
+    pk_fields = {'project_number': project_update.project_number}
+    updates = {k: v for k, v in project_update.model_dump(exclude_unset=True).items() if k != 'project_number'}
+    return update_record_by_composite_key(db, Project, current_entity.id, updates, **pk_fields)
 
 
 @router.delete("/project/{project_number}")
 def delete_project(
     project_number: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_user)
+    current_entity: Entity = Depends(get_current_entity)
 ):
-    """Eliminar un proyecto y todos sus sets/rifas asociados."""
-    project = get_record_by_composite_key(db, Project, current_user.id, project_number=project_number)
-    return delete_record(db, project, current_user)
+    """Delete a project and all its associated sets/raffles."""
+    project = get_record_by_composite_key(db, Project, current_entity.id, project_number=project_number)
+    return delete_record(db, project, current_entity.id)

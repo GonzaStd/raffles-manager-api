@@ -4,10 +4,13 @@ from core.config_loader import settings
 from database.connection import Base, engine
 from pathlib import Path
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
 structure_path = Path(__file__).resolve().parent / "structure.sql"
+
+IS_RAILWAY = getattr(settings, "ENVIRONMENT", "local").lower() == "railway"
 
 def get_sys_engine():
     """Create system engine for database operations"""
@@ -20,20 +23,20 @@ def get_sys_engine():
         # Local environment - connect to server without database for creation
         return create_engine(f"mysql+pymysql://{settings.MARIADB_USERNAME}:{settings.MARIADB_PASSWORD}@{settings.MARIADB_SERVER}:{settings.MARIADB_PORT}")
 
-def check_tables_exist():
-    """Check if all required tables exist"""
-    required_tables = ['users', 'projects', 'buyers', 'raffle_sets', 'raffles']
-
+def check_tables_exist(verbose=False):
+    """Check if all required tables exist, optionally log missing tables."""
+    required_tables = ['entities', 'managers', 'projects', 'buyers', 'raffle_sets', 'raffles']
+    missing = []
     try:
         with engine.connect() as conn:
-            # Check each table
             for table in required_tables:
                 result = conn.execute(text(f"SHOW TABLES LIKE '{table}'"))
                 if not result.fetchone():
-                    logger.info(f"Table '{table}' does not exist")
-                    return False
-
-            logger.info("All required tables exist")
+                    missing.append(table)
+            if missing:
+                if verbose:
+                    logger.error(f"Missing tables: {missing}")
+                return False
             return True
     except Exception as e:
         logger.error(f"Error checking tables: {e}")
@@ -43,9 +46,10 @@ def create_tables_sqlalchemy():
     """Create tables using SQLAlchemy"""
     try:
         # Import models here to avoid circular imports
-        from models.users import User
-        from models.project import Project
+        from models.entity import Entity
+        from models.manager import Manager
         from models.buyer import Buyer
+        from models.project import Project
         from models.raffleset import RaffleSet
         from models.raffle import Raffle
 
@@ -58,7 +62,7 @@ def create_tables_sqlalchemy():
         return False
 
 def create_tables_sql():
-    """Create tables using the SQL file as fallback"""
+    """Create tables using the SQL file as fallback, ensuring triggers are created after tables."""
     if not structure_path.exists():
         logger.error(f"SQL structure file not found: {structure_path}")
         return False
@@ -67,39 +71,69 @@ def create_tables_sql():
         with open(structure_path, 'r') as f:
             sql_content = f.read()
 
-        # Execute SQL commands
+        # Split by DELIMITER to separate triggers
+        sql_blocks = sql_content.split('DELIMITER')
+        table_sql = sql_blocks[0]
+        trigger_sql = ''
+        if len(sql_blocks) > 1:
+            trigger_sql = 'DELIMITER'.join(sql_blocks[1:])
+
+        # Parse and execute table creation statements robustly
         with engine.connect() as conn:
-            # Split by delimiter changes and execute
-            sql_commands = sql_content.split('DELIMITER')
-
-            for i, command_block in enumerate(sql_commands):
-                if i == 0:
-                    # First block - normal SQL commands
-                    commands = [cmd.strip() for cmd in command_block.split(';') if cmd.strip()]
-                    for cmd in commands:
-                        if cmd.upper().startswith(('CREATE', 'USE', 'INSERT')):
-                            conn.execute(text(cmd))
-                elif '$$' in command_block:
-                    # Trigger blocks
-                    triggers = command_block.split('$$')
-                    for trigger in triggers:
-                        trigger = trigger.strip()
-                        if trigger and 'CREATE TRIGGER' in trigger.upper():
-                            conn.execute(text(trigger))
-
+            statement = ''
+            for line in table_sql.splitlines():
+                line = line.strip()
+                # Skip comments and blank lines
+                if not line or line.startswith('--'):
+                    continue
+                # Accumulate statement
+                statement += ' ' + line
+                # If statement ends with semicolon, execute it
+                if line.endswith(';'):
+                    try:
+                        conn.execute(text(statement))
+                    except Exception as e:
+                        logger.error(f"Error executing statement: {e}\n[SQL: {statement}]")
+                        return False
+                    statement = ''
             conn.commit()
-            logger.info("Tables created successfully using SQL file")
-            return True
+
+        # Validate table existence before creating triggers
+        if not check_tables_exist(verbose=True):
+            logger.error("Table creation failed, not all tables exist.")
+            return False
+
+        # Now execute triggers in a new connection to ensure tables are visible
+        if trigger_sql:
+            with engine.connect() as conn:
+                # Remove DELIMITER and split by $$
+                trigger_blocks = trigger_sql.replace('DELIMITER', '').split('$$')
+                for trigger in trigger_blocks:
+                    trigger = trigger.strip()
+                    if trigger and 'CREATE TRIGGER' in trigger.upper():
+                        conn.execute(text(trigger))
+                conn.commit()
+
+        logger.info("Tables and triggers created successfully using SQL file")
+        return True
 
     except Exception as e:
         logger.error(f"Error creating tables with SQL file: {e}")
         return False
 
+def print_db_structure():
+    """Print the DB structure from structure.sql"""
+    if structure_path.exists():
+        with open(structure_path, 'r') as f:
+            print(f.read())
+    else:
+        print(f"SQL structure file not found: {structure_path}")
+
 def create_database_if_not_exists():
-    """Create the database if it doesn't exist"""
-    if settings.DATABASE_URL or settings.MYSQL_URL:
-        # Railway environment - database should already exist
-        logger.info("Using external database service, skipping database creation")
+    """Create the database if it doesn't exist (only on localhost). On Railway, just print the DB structure."""
+    if IS_RAILWAY:
+        logger.info("Railway detected: Skipping DB creation, printing DB structure.")
+        print_db_structure()
         return True
 
     try:
@@ -118,7 +152,12 @@ def create_database_if_not_exists():
         return False
 
 def create_database():
-    """Create database and tables if they don't exist"""
+    """Create database and tables if they don't exist (only on localhost). On Railway, just print the DB structure."""
+    if IS_RAILWAY:
+        logger.info("Railway detected: Skipping DB creation, printing DB structure.")
+        print_db_structure()
+        return
+
     try:
         # First, ensure the database exists
         if not create_database_if_not_exists():
@@ -157,14 +196,13 @@ def create_database():
             logger.info("Attempting to create database...")
             if create_database_if_not_exists():
                 logger.info("Database created, retrying table creation...")
-                # Retry after database creation
                 return create_database()
             else:
                 raise Exception("Failed to create database")
 
         logger.error(f"Could not connect to database: {e}")
 
-        # Si estamos en desarrollo local y hay problemas de acceso, intentar setup_mysql
+        # If we're in local development and there are access issues, try setup_mysql
         if not (settings.DATABASE_URL or settings.MYSQL_URL):
             if "Access denied" in str(e) or "Connection refused" in str(e):
                 logger.info("Attempting to setup MySQL for local development...")

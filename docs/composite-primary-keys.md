@@ -1,94 +1,113 @@
-.# Composite Primary Keys Implementation
+# Composite Primary Keys Implementation
 
 ## Overview
 
-This document describes the implementation of composite primary keys across all entities in the raffles manager system. The implementation ensures that each user has their own isolated numbering sequence starting from 1.
+This document describes the implementation of composite primary keys across all entities in the raffles manager system. The implementation ensures that each entity has their own isolated numbering sequence starting from 1.
 
-## Architecture Changes
+## Architecture
 
-### Before (Simple PKs)
-- `buyers.id` → Global auto-increment
-- `projects.id` → Global auto-increment  
-- `raffle_sets.id` → Global auto-increment
-- `raffles.number` → Global auto-increment
-
-### After (Composite PKs)
-- `buyers(user_id, buyer_number)` → Per-user numbering 1,2,3...
-- `projects(user_id, project_number)` → Per-user numbering 1,2,3...
-- `raffle_sets(user_id, project_number, set_number)` → Per-project numbering 1,2,3...
-- `raffles(user_id, project_number, raffle_number)` → Per-project numbering 1,2,3...
+### Entity-Manager System
+- `entities(id)` → Main organizational units
+- `managers(entity_id, manager_number)` → Per-entity numbering 1,2,3...
+- `buyers(entity_id, buyer_number)` → Per-entity numbering 1,2,3...
+- `projects(entity_id, project_number)` → Per-entity numbering 1,2,3...
+- `raffle_sets(entity_id, project_number, set_number)` → Per-project numbering 1,2,3...
+- `raffles(entity_id, project_number, raffle_number)` → Per-project numbering 1,2,3...
 
 ## Benefits
 
-### User Experience
-- **Predictable URLs**: `/buyer/1` always refers to the user's first buyer
-- **Intuitive numbering**: Each user sees their entities numbered from 1
-- **Privacy**: Users cannot infer system usage from ID gaps
+### Entity Experience
+- **Predictable URLs**: `/buyer/1` always refers to the entity's first buyer
+- **Intuitive numbering**: Each entity sees their resources numbered from 1
+- **Privacy**: Entities cannot infer system usage from ID gaps
 
 ### Security
 - **Information hiding**: Total system usage is not exposed through IDs
-- **User isolation**: Perfect conceptual separation between users
-- **No ID enumeration**: Attackers cannot guess valid IDs from other users
+- **Entity isolation**: Perfect conceptual separation between entities
+- **No ID enumeration**: Cannot guess valid IDs from other entities
 
 ### Technical
-- **Scalable**: Each user has independent numbering space
+- **Scalable**: Each entity has independent numbering space
 - **Maintainable**: Clear relationship hierarchy
 - **Database efficient**: Proper indexing on composite keys
 
 ## Implementation Details
 
 ### Models
-All models now use composite primary keys with proper foreign key relationships:
+All models use composite primary keys with proper foreign key relationships:
 
 ```python
+# Entity Model
+class Entity(Base):
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), unique=True, nullable=False)
+
+# Manager Model  
+class Manager(Base):
+    entity_id = Column(Integer, ForeignKey("entities.id"), primary_key=True)
+    manager_number = Column(Integer, primary_key=True)
+
 # Buyer Model
 class Buyer(Base):
-    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
-    buyer_number = Column(Integer, primary_key=True)  # Auto-increment per user
+    entity_id = Column(Integer, ForeignKey("entities.id"), primary_key=True)
+    buyer_number = Column(Integer, primary_key=True)
     
 # Project Model  
 class Project(Base):
-    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
-    project_number = Column(Integer, primary_key=True)  # Auto-increment per user
+    entity_id = Column(Integer, ForeignKey("entities.id"), primary_key=True)
+    project_number = Column(Integer, primary_key=True)
 
 # RaffleSet Model
 class RaffleSet(Base):
-    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    entity_id = Column(Integer, ForeignKey("entities.id"), primary_key=True)
     project_number = Column(Integer, primary_key=True)
-    set_number = Column(Integer, primary_key=True)  # Auto-increment per project
+    set_number = Column(Integer, primary_key=True)
 
 # Raffle Model
 class Raffle(Base):
-    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    entity_id = Column(Integer, ForeignKey("entities.id"), primary_key=True)
     project_number = Column(Integer, primary_key=True)
-    raffle_number = Column(Integer, primary_key=True)  # Auto-increment per project
+    raffle_number = Column(Integer, primary_key=True)
 ```
 
 ### Auto-increment Functions
-Specialized functions handle per-user/per-project numbering:
+Specialized functions handle per-entity/per-project numbering:
 
 ```python
-def get_next_buyer_number(db: Session, user_id: int) -> int
-def get_next_project_number(db: Session, user_id: int) -> int
-def get_next_set_number(db: Session, user_id: int, project_number: int) -> int
-def get_next_raffle_number(db: Session, user_id: int, project_number: int) -> int
+def get_next_buyer_number(db: Session, entity_id: int) -> int
+def get_next_project_number(db: Session, entity_id: int) -> int
+def get_next_manager_number(db: Session, entity_id: int) -> int
+def get_next_set_number(db: Session, entity_id: int, project_number: int) -> int
+def get_next_raffle_number(db: Session, entity_id: int, project_number: int) -> int
 ```
 
 ### URL Structure
-The new API uses hierarchical URLs that reflect the data structure:
+The API uses hierarchical URLs that reflect the data structure:
 
 ```
-# Buyers (per user)
+# Authentication
+POST /auth/entity/register
+POST /auth/entity/login
+POST /auth/manager/register
+POST /auth/manager/login
+
+# Buyers (per entity)
 GET /buyer/{buyer_number}
 POST /buyer
 PUT /buyer
 DELETE /buyer/{buyer_number}
 
-# Projects (per user)  
+# Projects (per entity)  
 GET /project/{project_number}
 POST /project
 PUT /project
 DELETE /project/{project_number}
+
+# Managers (per entity)
+GET /manager/{manager_number}
+GET /managers
+PUT /manager
+DELETE /manager/{manager_number}
 
 # Raffle Sets (per project)
 POST /project/{project_number}/raffleset
@@ -101,58 +120,30 @@ POST /project/{project_number}/raffles  # Filtered search
 POST /project/{project_number}/raffle/{raffle_number}/sell
 ```
 
-## Migration Considerations
-
-### Breaking Changes
-- **URL structure changed**: All endpoints now use composite identifiers
-- **Schema changes**: Database schema completely restructured
-- **API contracts**: Request/response schemas updated
-
-### Backward Compatibility
-- Legacy `get_record()` function provides limited compatibility
-- Simple ID lookups mapped to composite keys where possible
-- Clear error messages for unsupported operations
-
 ## Database Schema
 
 The database structure maintains referential integrity with proper foreign key constraints:
 
 ```sql
 -- Composite foreign keys ensure data consistency
-FOREIGN KEY (user_id, project_number) REFERENCES projects(user_id, project_number)
-FOREIGN KEY (user_id, project_number, set_number) REFERENCES raffle_sets(user_id, project_number, set_number)
-FOREIGN KEY (buyer_user_id, buyer_number) REFERENCES buyers(user_id, buyer_number)
+FOREIGN KEY (entity_id, project_number) REFERENCES projects(entity_id, project_number)
+FOREIGN KEY (entity_id, project_number, set_number) REFERENCES raffle_sets(entity_id, project_number, set_number)
+FOREIGN KEY (buyer_entity_id, buyer_number) REFERENCES buyers(entity_id, buyer_number)
+FOREIGN KEY (sold_by_entity_id, sold_by_manager_number) REFERENCES managers(entity_id, manager_number)
 ```
 
-## Testing Strategy
+## Manager Sale Tracking
 
-### Unit Tests
-- Auto-increment functions return correct sequences
-- Composite key lookups work correctly
-- User isolation is maintained
+### Automatic Attribution
+- When managers sell raffles, their identity is automatically recorded
+- Entities can manually assign sales to specific managers
+- Full audit trail of who sold what
 
-### Integration Tests  
-- End-to-end workflows with multiple users
-- Concurrent user operations don't interfere
-- Foreign key constraints are enforced
-
-### Performance Tests
-- Query performance with composite indexes
-- Bulk operations scaling
-- Memory usage under load
-
-## Future Considerations
-
-### Potential Optimizations
-- Consider partitioning large tables by user_id
-- Index optimization for common query patterns
-- Caching strategies for auto-increment values
-
-### Extension Points
-- Easy to add tenant-level isolation above user level
-- Prepared for horizontal scaling by user_id
-- Supports multi-regional deployments
+### Reporting Capabilities
+- Sales performance by manager
+- Commission calculations
+- Activity tracking per manager
 
 ---
 
-*This implementation provides a solid foundation for user-isolated multi-tenancy while maintaining data integrity and performance.*
+*This implementation provides entity-isolated multi-tenancy with manager accountability while maintaining data integrity and performance.*

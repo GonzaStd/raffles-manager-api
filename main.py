@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import buyer, project, raffleset, raffle, auth
+from routes import buyer, project, raffleset, raffle, entity_auth, manager
 from core.config_loader import settings
 from typing import cast
 from contextlib import asynccontextmanager
@@ -22,23 +22,29 @@ async def lifespan(app: FastAPI):
     print("Application shutting down")
 
 app = FastAPI(
-    title="Raffles Manager API",
-    version="1.0.0",
+    title="Raffles Manager API - Entity-Manager System",
+    version="2.0.0",
+    description="Entity-Manager based raffle management system with composite primary keys",
     lifespan=lifespan
 )
 
 # Configure CORS
-origins = [
-    "http://localhost:3000",
-    "http://localhost:8080",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:8080",
-    "*"  # Allow all origins for now - restrict in production
-]
+# For production (Railway), set your frontend domain(s) in BACKEND_CORS_ORIGINS env variable.
+# For local development, allow localhost domains.
+# Example for Railway: BACKEND_CORS_ORIGINS=["https://your-frontend.railway.app"]
+# Example for local: BACKEND_CORS_ORIGINS=["http://localhost:3000"]
+origins = []
 
-# Add CORS origins from settings if available
 if settings.BACKEND_CORS_ORIGINS:
     origins.extend(settings.BACKEND_CORS_ORIGINS)
+else:
+    # Default to localhost for development
+    origins = [
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:8080"
+    ]
 
 app.add_middleware(
     cast(type, CORSMiddleware),  # type: ignore
@@ -51,18 +57,42 @@ app.add_middleware(
 # Health check endpoint for Railway
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy", "environment": settings.ENVIRONMENT}
+    return {"status": "healthy", "system": "entity-manager"}
 
-@app.get("/")
-async def root():
-    return {"message": "Raffles Manager API", "docs": "/docs"}
+# Include API routers
 
-# Include routers
-app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
+# Entity-Manager Authentication Routes
+app.include_router(entity_auth.router, prefix="/auth", tags=["Entity & Manager Authentication"])
+
+# Entity Management Routes
 app.include_router(buyer.router, tags=["Buyers"])
 app.include_router(project.router, tags=["Projects"])
 app.include_router(raffleset.router, tags=["Raffle Sets"])
 app.include_router(raffle.router, tags=["Raffles"])
+
+# Manager Management Routes
+app.include_router(manager.router, tags=["Managers"])
+
+# Root endpoint
+@app.get("/")
+async def root():
+    return {
+        "message": "Raffles Manager API - Entity-Manager System",
+        "version": "2.0.0",
+        "architecture": "Entity-Manager with Composite Primary Keys",
+        "features": [
+            "Entity isolation with predictable numbering",
+            "Manager authentication and sale tracking",
+            "Composite primary keys for data organization",
+            "Automatic database initialization"
+        ],
+        "auth_endpoints": {
+            "entity_register": "/auth/entity/register",
+            "entity_login": "/auth/entity/login",
+            "manager_register": "/auth/manager/register",
+            "manager_login": "/auth/manager/login"
+        }
+    }
 
 if __name__ == "__main__":
     import uvicorn
