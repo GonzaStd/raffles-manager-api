@@ -28,14 +28,14 @@
 -- 1. ENTITIES TABLE (Base of the isolation system)
 CREATE TABLE entities (
     id INT NOT NULL AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL,
+    username VARCHAR(100) NOT NULL,
     hashed_password VARCHAR(255) NOT NULL,
     description VARCHAR(500),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uk_entity_name (name),
-    KEY idx_entity_name (name)
+    UNIQUE KEY uk_entity_username (username),
+    KEY idx_entity_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 2. MANAGERS TABLE (Composite PK: entity_id + manager_number)

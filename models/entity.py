@@ -7,7 +7,7 @@ class Entity(Base):
     __tablename__ = "entities"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(100), unique=True, index=True, nullable=False)
+    username = Column(String(100), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
     description = Column(String(500), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

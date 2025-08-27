@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from database.connection import get_db
 from auth.services.entity_auth_service import (
-    authenticate_entity, authenticate_manager, create_access_token, get_current_active_manager, get_current_entity)
+    authenticate_entity, create_access_token, get_current_active_manager, get_current_entity)
 from auth.models.token import Token
 from models.entity import Entity
 from models.manager import Manager
@@ -26,23 +26,23 @@ def register_entity(entity_data: EntityCreate, db: Session = Depends(get_db)):
     try:
         # Check if entity already exists
         from auth.services.entity_auth_service import get_entity
-        existing_entity = get_entity(db, entity_data.name)
+        existing_entity = get_entity(db, entity_data.username)
 
         if existing_entity:
             # ⚠️ IMPORTANT: Don't reveal that the entity exists (enumeration prevention)
             # Internal log for administrators
-            logger.warning(f"Registration attempt for existing entity: {entity_data.name}")
+            logger.warning(f"Registration attempt for existing entity: {entity_data.username}")
 
             # Generic response to prevent enumeration
             return {
-                "message": "Entity name already exists",
+                "message": "Entity username already exists",
                 "detail": "Couldn't create account"
             }
 
         # Create new entity
         hashed_password = get_password_hash(entity_data.password)
         new_entity = Entity(
-            name=entity_data.name,
+            username=entity_data.username,
             hashed_password=hashed_password,
             description=entity_data.description
         )
@@ -52,7 +52,7 @@ def register_entity(entity_data: EntityCreate, db: Session = Depends(get_db)):
         db.refresh(new_entity)
 
         # Success log
-        logger.info(f"New entity registered successfully: {entity_data.name}")
+        logger.info(f"New entity registered successfully: {entity_data.username}")
 
         return {
             "message": "Registration completed successfully",
@@ -61,7 +61,7 @@ def register_entity(entity_data: EntityCreate, db: Session = Depends(get_db)):
 
     except Exception as e:
         # Log real error
-        logger.error(f"Registration error for {entity_data.name}: {str(e)}")
+        logger.error(f"Registration error for {entity_data.username}: {str(e)}")
 
         # ✅ SHOW REAL ERROR - Not enumeration, it's a technical problem
         db.rollback()
@@ -111,7 +111,7 @@ def register_manager(
         db.refresh(new_manager)
 
         # Success log
-        logger.info(f"New manager registered successfully: {manager_data.username} for entity {current_entity.name}")
+        logger.info(f"New manager registered successfully: {manager_data.username} for entity {current_entity.username}")
 
         return {
             "message": "Manager registration completed successfully",
@@ -139,14 +139,14 @@ def login_entity(form_data: OAuth2PasswordRequestForm = Depends(), db: Session =
         # Generic message that doesn't reveal if entity exists or password is wrong
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect entity name or password",
+            detail="Incorrect entity username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
     # Log successful login
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        subject=entity.name, subject_type="entity", expires_delta=access_token_expires
+        subject=entity.username, subject_type="entity", expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -155,10 +155,10 @@ def login_manager(
     login_data: ManagerLogin,
     db: Session = Depends(get_db)
 ):
-    """Multi-tenant manager login: requires entity_name, username, password."""
+    """Multi-tenant manager login: requires entity_username, username, password."""
     # Check if entity exists
-    from auth.services.entity_auth_service import get_entity, get_manager_by_entity_and_username, authenticate_manager_by_entity
-    entity = get_entity(db, login_data.entity_name)
+    from auth.services.entity_auth_service import get_entity, authenticate_manager_by_entity
+    entity = get_entity(db, login_data.entity_username)
     if not entity:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
