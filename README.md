@@ -1,122 +1,152 @@
-## Getting Started
-Run the command `git clone https://github.com/GonzaStd/raffles-manager-api/` and then run `pip install -r requirements.txt` 
+# Raffles Manager API
 
-(You may need to first create a virtual environment with `python -m venv .venv` and run pip from `.venv/bin/pip`)
+A REST API for managing raffle projects, raffle sets, individual raffle numbers, buyers, and user accounts.
 
-Install mariadb-server: `sudo apt-get install mariadb-server` for Debian.
+The project is designed around the organization of raffles into projects and sets, while keeping each user's data isolated.
 
-Get your JWT secret with this command: `python -c "import secrets; print('JWT_SECRET_KEY=' + secrets.token_urlsafe(32))"`
-and paste it in your .env file. WARNING: Don't share this secret with anyone, don't upload it to your repository.
+## Features
 
-## Run localhost api server
-Use `python -m uvicorn main:app` to start it.
+### Project Management
 
-## Documentation
-You have more information [here](docs/english)
+- Create and manage raffle projects per user.
+- Organize raffle sets within each project.
+- Example: a project such as `Father's Day Raffle` can contain multiple raffle sets.
 
-You can see the FastAPI automatic documentation of the API on: `http://127.0.0.1:8000/docs`
+### Raffle System
 
----
+- Create raffle sets for physical or virtual raffles.
+- Generate individual raffle numbers automatically.
+- Configure the number of tickets and unit price.
+- Manage raffle number ranges.
+- Track raffle number status:
+  - `available`
+  - `reserved`
+  - `paid`
+- Easily retrieve sold numbers for raffle draws.
 
-# Devlog 4: Big System Review and Architecture Improvements
+> A raffle set being physical or virtual refers to how the raffle is sold, not to the payment method.
 
-I have focused on user isolation, database reliability, optimal and efficient code.  
-Changes introduced: primary keys, functions, good database initialization, and timezone-aware authentication systems.
+### Buyer Management
 
----
+- Register buyers and their personal information.
+- Validate email addresses and phone numbers.
+- Keep track of buyer purchase history.
+- Associate purchases with individual raffle numbers.
 
-## 🏗️ Architectural Changes
+### Authentication
 
-### 1. Database Schema Revolution: Composite Primary Keys
+- User registration and login.
+- JWT-based authentication.
+- Bearer token authentication for protected endpoints.
+- Password hashing with bcrypt.
 
-**Problem Solved**  
-Original system used global auto-increment IDs, had security issues, lack of user isolation.
+### User Data Isolation
 
-**Solution Implemented**  
-Composite primary key architecture.
+Each user's projects, raffle sets, raffles, and buyers are isolated from other users.
 
-**Benefits Achieved**
-- Good User Isolation: Each user sees their entities numbered from 1  
-- Security Enhancement: Prevents user enumeration and information leakage  
-- Predictable URLs: `/buyer/1` always refers to the user's first buyer  
-- Scalable Architecture: Each user operates in their own numbering space  
+The database uses user-aware identifiers and relationships to keep entities scoped to their owner.
 
----
+## Typical Usage Flow
 
-### 2. Universal Helper Functions System
+A typical workflow looks like this:
 
-**Problem Solved**  
-Repetitive database operations across different models with inconsistent patterns and error handling.
+1. An administrator registers or logs in.
+2. The administrator creates a project, for example `Scout Camp Raffle`.
+3. Raffle sets are created inside the project.
+4. The system automatically generates the requested number of raffle numbers.
+5. Buyers are registered.
+6. Raffle numbers are assigned to buyers.
+7. Numbers are marked as paid when the purchase is completed.
+8. The system can retrieve the sold numbers when the raffle is ready to be drawn.
 
-**Solution Implemented**  
-Universal functions in `routes/__init__.py`.
+A raffle set does not necessarily represent a specific prize. It is primarily a way to organize groups of raffle numbers within a project.
 
-**Benefits**
-- Code Reusability: Single functions handle all models consistently  
-- Error Handling: Centralized exception management and HTTP responses  
-- Maintainability: Changes to database logic only need to be made in one place  
-- Type Safety: Proper parameter validation and return types  
+## Data Model
 
----
+The main entities are:
 
-### 3. Advanced Raffle Filtering
+```text
+User
+ ├── Projects
+ │    └── RaffleSets
+ │         └── Raffles
+ │
+ └── Buyers
+      └── Purchases
+````
 
-**Problem Solved**  
-Limited ability to filter and search raffles for drawings and sales management.
+The main database tables are:
 
-**Solution Implemented**  
-Enhanced raffle filtering system.
+* `users`
+* `projects`
+* `rafflesets`
+* `raffles`
+* `buyers`
 
-**Benefits Achieved**
-- Sales Management: Quick identification of available/sold raffles  
-- Performance: Efficient querying with proper indexing  
-- Flexibility: Multiple filter combinations for different use cases  
+Relationships between these entities are handled through SQLAlchemy.
 
----
+## Technologies
 
-### 4. Robust Database Initialization System
+* **Python**
+* **FastAPI** — REST API framework
+* **SQLAlchemy** — ORM and database modeling
+* **MySQL / MariaDB** — relational database
+* **Pydantic** — data validation
+* **JWT** — authentication
+* **bcrypt** — password hashing
+* **Uvicorn** — ASGI server
 
-**Problem Solved**  
-Application failures when database doesn't exist, inconsistent table creation across environments.
+## Installation
 
-**Solution Implemented**  
-Intelligent database initialization.
+Clone the repository and install the dependencies:
 
-**Features Implemented**
-- Environment Detection: Different behavior for local vs. production  
-- Graceful Failure Handling: Continues operation even with initialization warnings  
-- Multiple Creation Strategies: SQLAlchemy metadata + SQL fallback  
-- Verification System: Always confirms all required tables exist  
+```bash
+git clone https://github.com/GonzaStd/raffles-manager-api/
+cd raffles-manager-api
 
----
+python -m venv .venv
+source .venv/bin/activate
 
-### 5. JWT Authentication Timezone Fix
+pip install -r requirements.txt
+```
 
-**Problem Solved**  
-JWT tokens were immediately expiring due to timezone mismatches between token creation (local time) and validation (UTC time).
+On Debian-based systems, install MariaDB with:
 
-**Solution Implemented**  
-Timezone-aware token creation.
+```bash
+sudo apt install mariadb-server
+```
 
-**Benefits Achieved**
-- Reliable Authentication: Tokens work correctly  
-- User Experience: No unexpected authentication failures  
+Create a JWT secret:
 
----
+```bash
+python -c "import secrets; print('JWT_SECRET_KEY=' + secrets.token_urlsafe(32))"
+```
 
-## 🧰 Technical Improvements
+Add the generated value to your `.env` file.
 
-### Code Quality and Maintainability
-1. Consolidated Error Handling: Centralized exception management across all routes  
-2. Consistent API Patterns: All endpoints follow the same structure and response format  
+**Do not commit your JWT secret or other credentials to the repository.**
 
-### Performance Optimizations
-1. Efficient Querying: Optimized database queries with proper filtering and indexing  
-2. Batch Operations: Bulk raffle creation for raffle sets  
-3. Connection Pooling: Proper database connection management  
+## Running the API
 
-### Development Experience
-1. Zero Configuration Setup: Database and tables created automatically  
-2. Clear Error Messages: Detailed feedback for troubleshooting  
-3. Environment Flexibility: Works seamlessly in local and production environments  
-4. Comprehensive Testing: All major functions include error handling and validation  
+Start the development server with:
+
+```bash
+python -m uvicorn main:app
+```
+
+The API will be available locally at:
+
+```text
+http://127.0.0.1:8000
+```
+
+## Project Status
+
+This is a personal backend project focused on building a practical REST API and exploring:
+
+* API design with FastAPI
+* Relational database modeling
+* Authentication and authorization
+* Data validation
+* User-scoped data
+* Raffle and purchase management
