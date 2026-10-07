@@ -1,5 +1,6 @@
 # Raffles Manager API
 ![Front Page](https://github.com/GonzaStd/raffles-manager-api/.github/multimedia/FrontPage.png)
+
 A REST API for managing raffle projects, raffle sets, individual raffle numbers, buyers, and user accounts.
 
 The project is designed around the organization of raffles into projects and sets, while keeping each user's data isolated.
